@@ -14,22 +14,6 @@ import { FiArrowRight, FiMapPin, FiCalendar } from 'react-icons/fi'
 
 const SDG_NUMS = [3, 6, 7, 11, 12, 13, 14, 15, 17]
 
-/*
- * FIX ONLY:
- * API responses can be either:
- *   { results: [...] }
- * or
- *   [...]
- *
- * This helper guarantees that .map() / .filter()
- * always receive an array.
- */
-const getArray = (data) => {
-  if (Array.isArray(data)) return data
-  if (Array.isArray(data?.results)) return data.results
-  return []
-}
-
 export default function Home() {
   const { s } = useSettings()
 
@@ -44,100 +28,76 @@ export default function Home() {
   const [loaded, setLoaded] = useState(false)
 
   useEffect(() => {
-    const p = [
-      api.get('/impact/')
-        .then(r => {
-          setImpact(
-            r?.data && typeof r.data === 'object' && !Array.isArray(r.data)
-              ? r.data
-              : null
-          )
-        })
-        .catch(() => {
-          setImpact(null)
-        }),
+    const requests = [
+      api
+        .get('/impact/')
+        .then((r) => setImpact(r.data))
+        .catch(() => {}),
 
-      api.get('/sdgs/', {
-        params: { page_size: 20 }
-      })
-        .then(r => {
-          const all = getArray(r?.data)
+      api
+        .get('/sdgs/', {
+          params: { page_size: 20 },
+        })
+        .then((r) => {
+          const all = r.data.results || r.data || []
 
           setSdgs(
             all
-              .filter(x => x && SDG_NUMS.includes(Number(x.number)))
+              .filter((x) => SDG_NUMS.includes(x.number))
               .slice(0, 9)
           )
         })
-        .catch(() => {
-          setSdgs([])
-        }),
+        .catch(() => {}),
 
-      api.get('/events/', {
-        params: {
-          is_past: false,
-          page_size: 6
-        }
-      })
-        .then(r => {
-          setEvents(getArray(r?.data))
+      api
+        .get('/events/', {
+          params: {
+            is_past: false,
+            page_size: 6,
+          },
         })
-        .catch(() => {
-          setEvents([])
-        }),
+        .then((r) => setEvents(r.data.results || r.data || []))
+        .catch(() => {}),
 
-      api.get('/memories/', {
-        params: { page_size: 4 }
-      })
-        .then(r => {
-          setMemories(getArray(r?.data))
+      api
+        .get('/memories/', {
+          params: { page_size: 4 },
         })
-        .catch(() => {
-          setMemories([])
-        }),
+        .then((r) => setMemories(r.data.results || r.data || []))
+        .catch(() => {}),
 
-      api.get('/gallery/', {
-        params: { page_size: 6 }
-      })
-        .then(r => {
-          setGallery(getArray(r?.data))
+      api
+        .get('/gallery/', {
+          params: { page_size: 6 },
         })
-        .catch(() => {
-          setGallery([])
-        }),
+        .then((r) => setGallery(r.data.results || r.data || []))
+        .catch(() => {}),
 
-      api.get('/team/', {
-        params: { page_size: 6 }
-      })
-        .then(r => {
-          setTeam(getArray(r?.data))
+      api
+        .get('/team/', {
+          params: { page_size: 6 },
         })
-        .catch(() => {
-          setTeam([])
-        }),
+        .then((r) => setTeam(r.data.results || r.data || []))
+        .catch(() => {}),
 
-      api.get('/announcements/', {
-        params: { page_size: 5 }
-      })
-        .then(r => {
-          setAnnouncements(getArray(r?.data))
+      api
+        .get('/announcements/', {
+          params: { page_size: 5 },
         })
-        .catch(() => {
-          setAnnouncements([])
-        }),
+        .then((r) =>
+          setAnnouncements(r.data.results || r.data || [])
+        )
+        .catch(() => {}),
 
-      api.get('/blog/', {
-        params: { page_size: 3 }
-      })
-        .then(r => {
-          setBlog(getArray(r?.data))
+      api
+        .get('/blog/', {
+          params: { page_size: 3 },
         })
-        .catch(() => {
-          setBlog([])
-        }),
+        .then((r) => setBlog(r.data.results || r.data || []))
+        .catch(() => {}),
     ]
 
-    Promise.all(p).finally(() => setLoaded(true))
+    Promise.all(requests).finally(() => setLoaded(true))
   }, [])
 
   const impactList = impact
@@ -145,13 +105,25 @@ export default function Home() {
         .map(([metric, value]) => ({
           ...(META[metric] || {}),
           metric,
-          value
+          value,
         }))
-        .filter(x => x.value)
+        .filter((x) => x.value)
     : []
 
   return (
-    <div>
+    <>
+      {/* Hero */}
+      <Hero />
+
+      {/* Scrolling Message */}
+      <ScrollingMessage />
+
+      {/* Loading */}
+      {!loaded && (
+        <div className="py-10">
+          <Loader />
+        </div>
+      )}
 
       {/* Impact stats */}
       <section className="section bg-cream">
@@ -164,7 +136,10 @@ export default function Home() {
 
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             {impactList.slice(0, 8).map((k, i) => (
-              <Reveal key={k.metric} delay={i * 0.06}>
+              <Reveal
+                key={k.metric}
+                delay={i * 0.06}
+              >
                 <StatCounter
                   value={k.value}
                   label={k.label}
@@ -212,15 +187,16 @@ export default function Home() {
 
             <p className="mt-4 text-forest-700/80 leading-relaxed">
               Rooted in the United Nations Sustainable Development Goals, our
-              work connects students with real environmental challenges —
-              and real solutions.
+              work connects students with real environmental challenges — and
+              real solutions.
             </p>
 
             <Link
               to="/about"
               className="inline-flex items-center gap-2 mt-6 px-6 py-3 rounded-lg bg-emerald-600 text-white font-semibold hover:bg-emerald-700 transition"
             >
-              Learn More <FiArrowRight />
+              Learn More
+              <FiArrowRight />
             </Link>
           </Reveal>
         </div>
@@ -229,7 +205,6 @@ export default function Home() {
       {/* Mission & Vision */}
       <section className="section bg-gradient-to-br from-emerald-900 to-forest-900 text-white">
         <div className="container-x grid md:grid-cols-2 gap-6">
-
           <Reveal>
             <div className="bg-white/10 border border-white/15 rounded-3xl p-8 backdrop-blur h-full">
               <div className="text-3xl mb-4">🎯</div>
@@ -263,7 +238,6 @@ export default function Home() {
               </p>
             </div>
           </Reveal>
-
         </div>
       </section>
 
@@ -291,7 +265,8 @@ export default function Home() {
               to="/sdgs"
               className="inline-flex items-center gap-2 text-emerald-700 font-semibold hover:gap-3 transition-all"
             >
-              View all SDGs <FiArrowRight />
+              View all SDGs
+              <FiArrowRight />
             </Link>
           </div>
         </div>
@@ -335,9 +310,11 @@ export default function Home() {
 
           <div className="grid md:grid-cols-2 gap-6">
             {memories.map((m, i) => (
-              <Reveal key={m.id} delay={i * 0.08}>
+              <Reveal
+                key={m.id}
+                delay={i * 0.08}
+              >
                 <div className="glass rounded-3xl overflow-hidden flex flex-col md:flex-row">
-
                   <div className="md:w-2/5 h-44 md:h-auto bg-gradient-to-br from-emerald-600 to-green-500">
                     {m.photo ? (
                       <img
@@ -372,7 +349,6 @@ export default function Home() {
                       View Moments →
                     </Link>
                   </div>
-
                 </div>
               </Reveal>
             ))}
@@ -389,7 +365,7 @@ export default function Home() {
           />
 
           <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-            {gallery.map(g => (
+            {gallery.map((g) => (
               <Link
                 key={g.id}
                 to="/gallery"
@@ -428,9 +404,11 @@ export default function Home() {
 
           <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-5">
             {team.map((t, i) => (
-              <Reveal key={t.id} delay={i * 0.07}>
+              <Reveal
+                key={t.id}
+                delay={i * 0.07}
+              >
                 <div className="glass rounded-2xl p-5 text-center">
-
                   <div className="w-20 h-20 mx-auto rounded-full overflow-hidden bg-emerald-100 grid place-items-center mb-3">
                     {t.photo ? (
                       <img
@@ -448,7 +426,7 @@ export default function Home() {
                   </h4>
 
                   <div className="text-xs text-emerald-700 font-medium capitalize">
-                    {typeof t.role === 'string'
+                    {t.role
                       ? t.role.replace('_', ' ')
                       : ''}
                   </div>
@@ -456,7 +434,6 @@ export default function Home() {
                   <div className="text-xs text-forest-600/70 mt-1">
                     {t.department}
                   </div>
-
                 </div>
               </Reveal>
             ))}
@@ -467,7 +444,8 @@ export default function Home() {
               to="/team"
               className="inline-flex items-center gap-2 text-emerald-700 font-semibold"
             >
-              Full Team <FiArrowRight />
+              Full Team
+              <FiArrowRight />
             </Link>
           </div>
         </div>
@@ -477,7 +455,6 @@ export default function Home() {
       <section className="section bg-gradient-to-br from-emerald-700 to-green-600 text-white text-center">
         <div className="container-x">
           <Reveal>
-
             <h2 className="text-3xl md:text-4xl font-bold">
               Become a Change Maker
             </h2>
@@ -493,7 +470,6 @@ export default function Home() {
             >
               Join Eco Club
             </Link>
-
           </Reveal>
         </div>
       </section>
@@ -501,17 +477,15 @@ export default function Home() {
       {/* Announcements */}
       <section className="section bg-white">
         <div className="container-x">
-
           <SectionHeading
             eyebrow="Announcements"
             title="Latest Updates"
           />
 
           <div className="space-y-3 max-w-3xl mx-auto">
-            {announcements.map(a => (
+            {announcements.map((a) => (
               <Reveal key={a.id}>
                 <div className="flex items-start gap-4 glass rounded-2xl p-5">
-
                   <span className="shrink-0 w-9 h-9 rounded-full bg-emerald-100 grid place-items-center text-emerald-700">
                     <FiCalendar />
                   </span>
@@ -527,19 +501,16 @@ export default function Home() {
                       </p>
                     )}
                   </div>
-
                 </div>
               </Reveal>
             ))}
           </div>
-
         </div>
       </section>
 
       {/* Blog */}
       <section className="section bg-cream">
         <div className="container-x">
-
           <SectionHeading
             eyebrow="News & Blog"
             title="From the ECO CLUB Blog"
@@ -547,12 +518,14 @@ export default function Home() {
 
           <div className="grid md:grid-cols-3 gap-5">
             {blog.map((p, i) => (
-              <Reveal key={p.id} delay={i * 0.08}>
+              <Reveal
+                key={p.id}
+                delay={i * 0.08}
+              >
                 <Link
                   to={`/blog/${p.slug}`}
                   className="glass rounded-2xl overflow-hidden hover:shadow-lg transition group block h-full"
                 >
-
                   <div className="h-40 bg-gradient-to-br from-emerald-700 to-lime-600 overflow-hidden">
                     {p.cover_image ? (
                       <img
@@ -568,7 +541,6 @@ export default function Home() {
                   </div>
 
                   <div className="p-5">
-
                     <div className="text-xs text-emerald-600 font-semibold uppercase">
                       {p.category}
                     </div>
@@ -580,21 +552,17 @@ export default function Home() {
                     <p className="text-xs text-forest-600/70 mt-2">
                       {p.excerpt}
                     </p>
-
                   </div>
-
                 </Link>
               </Reveal>
             ))}
           </div>
-
         </div>
       </section>
 
       {/* Contact CTA */}
       <section className="section bg-white">
         <div className="container-x text-center max-w-xl">
-
           <SectionHeading
             eyebrow="Contact"
             title="Have a Question?"
@@ -615,10 +583,9 @@ export default function Home() {
 
             <p>{s('phone')}</p>
           </div>
-
         </div>
       </section>
-
-    </div>
+    </>
   )
 }
+
