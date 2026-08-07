@@ -18,7 +18,11 @@ def home(request):
 
 urlpatterns = [
     path("", home, name="home"),
-    path("django-admin/", admin.site.urls),
+
+    # Django Admin
+    path("admin/", admin.site.urls),
+
+    # API
     path("api/", include("config.api_urls")),
 ]
 
