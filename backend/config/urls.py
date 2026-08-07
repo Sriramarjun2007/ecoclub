@@ -1,3 +1,4 @@
+
 """Root URL configuration for the ECO CLUB platform."""
 
 from django.conf import settings
@@ -17,9 +18,7 @@ def home(request):
 
 urlpatterns = [
     path("", home, name="home"),
-
     path("django-admin/", admin.site.urls),
-
     path("api/", include("config.api_urls")),
 ]
 
@@ -29,3 +28,4 @@ if settings.DEBUG:
         settings.MEDIA_URL,
         document_root=settings.MEDIA_ROOT,
     )
+
