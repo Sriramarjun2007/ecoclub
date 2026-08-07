@@ -56,7 +56,7 @@ export default function Admin() {
   )
 }
 
-/* ---------- Overview ---------- */
+
 function Overview({ onNav }) {
   const [impact, setImpact] = useState(null)
   useEffect(() => { api.get('/impact/').then(r => setImpact(r.data)).catch(() => {}) }, [])
