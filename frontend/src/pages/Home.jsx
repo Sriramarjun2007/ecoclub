@@ -1,7 +1,6 @@
 
 import React, { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { motion } from 'framer-motion'
 import api from '../lib/api'
 import { useSettings } from '../context/SettingsContext'
 import Hero, { ScrollingMessage } from '../components/Hero'
@@ -10,9 +9,49 @@ import { StatCounter, META } from '../components/StatCounter'
 import SDGCard from '../components/SDGCard'
 import EventCard from '../components/EventCard'
 import Loader, { EmptyState } from '../components/Loader'
-import { FiArrowRight, FiMapPin, FiCalendar } from 'react-icons/fi'
+import { FiArrowRight, FiCalendar } from 'react-icons/fi'
 
 const SDG_NUMS = [3, 6, 7, 11, 12, 13, 14, 15, 17]
+
+/*
+  Safely convert any API response into an array.
+
+  Handles:
+  [
+    {...},
+    {...}
+  ]
+
+  and:
+
+  {
+    results: [...]
+  }
+
+  and:
+
+  {
+    data: [...]
+  }
+
+  If the API returns something unexpected,
+  it returns [] instead of crashing .map().
+*/
+const getList = (data) => {
+  if (Array.isArray(data)) {
+    return data
+  }
+
+  if (Array.isArray(data?.results)) {
+    return data.results
+  }
+
+  if (Array.isArray(data?.data)) {
+    return data.data
+  }
+
+  return []
+}
 
 export default function Home() {
   const { s } = useSettings()
@@ -29,26 +68,47 @@ export default function Home() {
 
   useEffect(() => {
     const requests = [
+      // =========================
+      // IMPACT
+      // =========================
       api
         .get('/impact/')
-        .then((r) => setImpact(r.data))
-        .catch(() => {}),
+        .then((r) => {
+          setImpact(r.data || {})
+        })
+        .catch((err) => {
+          console.error('Impact API error:', err)
+          setImpact({})
+        }),
 
+      // =========================
+      // SDGs
+      // =========================
       api
         .get('/sdgs/', {
-          params: { page_size: 20 },
+          params: {
+            page_size: 20,
+          },
         })
         .then((r) => {
-          const all = r.data.results || r.data || []
+          const all = getList(r.data)
 
           setSdgs(
             all
-              .filter((x) => SDG_NUMS.includes(x.number))
+              .filter((item) =>
+                SDG_NUMS.includes(Number(item?.number))
+              )
               .slice(0, 9)
           )
         })
-        .catch(() => {}),
+        .catch((err) => {
+          console.error('SDGs API error:', err)
+          setSdgs([])
+        }),
 
+      // =========================
+      // EVENTS
+      // =========================
       api
         .get('/events/', {
           params: {
@@ -56,76 +116,140 @@ export default function Home() {
             page_size: 6,
           },
         })
-        .then((r) => setEvents(r.data.results || r.data || []))
-        .catch(() => {}),
+        .then((r) => {
+          setEvents(getList(r.data))
+        })
+        .catch((err) => {
+          console.error('Events API error:', err)
+          setEvents([])
+        }),
 
+      // =========================
+      // MEMORIES
+      // =========================
       api
         .get('/memories/', {
-          params: { page_size: 4 },
+          params: {
+            page_size: 4,
+          },
         })
-        .then((r) => setMemories(r.data.results || r.data || []))
-        .catch(() => {}),
+        .then((r) => {
+          setMemories(getList(r.data))
+        })
+        .catch((err) => {
+          console.error('Memories API error:', err)
+          setMemories([])
+        }),
 
+      // =========================
+      // GALLERY
+      // =========================
       api
         .get('/gallery/', {
-          params: { page_size: 6 },
+          params: {
+            page_size: 6,
+          },
         })
-        .then((r) => setGallery(r.data.results || r.data || []))
-        .catch(() => {}),
+        .then((r) => {
+          setGallery(getList(r.data))
+        })
+        .catch((err) => {
+          console.error('Gallery API error:', err)
+          setGallery([])
+        }),
 
+      // =========================
+      // TEAM
+      // =========================
       api
         .get('/team/', {
-          params: { page_size: 6 },
+          params: {
+            page_size: 6,
+          },
         })
-        .then((r) => setTeam(r.data.results || r.data || []))
-        .catch(() => {}),
+        .then((r) => {
+          setTeam(getList(r.data))
+        })
+        .catch((err) => {
+          console.error('Team API error:', err)
+          setTeam([])
+        }),
 
+      // =========================
+      // ANNOUNCEMENTS
+      // =========================
       api
         .get('/announcements/', {
-          params: { page_size: 5 },
+          params: {
+            page_size: 5,
+          },
         })
-        .then((r) =>
-          setAnnouncements(r.data.results || r.data || [])
-        )
-        .catch(() => {}),
+        .then((r) => {
+          setAnnouncements(getList(r.data))
+        })
+        .catch((err) => {
+          console.error('Announcements API error:', err)
+          setAnnouncements([])
+        }),
 
+      // =========================
+      // BLOG
+      // =========================
       api
         .get('/blog/', {
-          params: { page_size: 3 },
+          params: {
+            page_size: 3,
+          },
         })
-        .then((r) => setBlog(r.data.results || r.data || []))
-        .catch(() => {}),
+        .then((r) => {
+          setBlog(getList(r.data))
+        })
+        .catch((err) => {
+          console.error('Blog API error:', err)
+          setBlog([])
+        }),
     ]
 
-    Promise.all(requests).finally(() => setLoaded(true))
+    Promise.allSettled(requests).finally(() => {
+      setLoaded(true)
+    })
   }, [])
 
-  const impactList = impact
-    ? Object.entries(impact)
-        .map(([metric, value]) => ({
-          ...(META[metric] || {}),
-          metric,
-          value,
-        }))
-        .filter((x) => x.value)
-    : []
+  // =========================
+  // IMPACT DATA
+  // =========================
+  const impactList =
+    impact && typeof impact === 'object' && !Array.isArray(impact)
+      ? Object.entries(impact)
+          .map(([metric, value]) => ({
+            ...(META?.[metric] || {}),
+            metric,
+            value,
+          }))
+          .filter((item) => item.value !== null && item.value !== undefined)
+      : []
 
   return (
     <>
-      {/* Hero */}
+      {/* =========================
+          HERO
+      ========================= */}
       <Hero />
 
-      {/* Scrolling Message */}
       <ScrollingMessage />
 
-      {/* Loading */}
+      {/* =========================
+          LOADING
+      ========================= */}
       {!loaded && (
-        <div className="py-10">
+        <div className="py-8">
           <Loader />
         </div>
       )}
 
-      {/* Impact stats */}
+      {/* =========================
+          IMPACT STATS
+      ========================= */}
       <section className="section bg-cream">
         <div className="container-x">
           <SectionHeading
@@ -135,25 +259,28 @@ export default function Home() {
           />
 
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            {impactList.slice(0, 8).map((k, i) => (
-              <Reveal
-                key={k.metric}
-                delay={i * 0.06}
-              >
-                <StatCounter
-                  value={k.value}
-                  label={k.label}
-                  icon={k.icon}
-                  color={k.color}
-                  suffix={k.suffix}
-                />
-              </Reveal>
-            ))}
+            {Array.isArray(impactList) &&
+              impactList.slice(0, 8).map((k, i) => (
+                <Reveal
+                  key={k.metric}
+                  delay={i * 0.06}
+                >
+                  <StatCounter
+                    value={k.value}
+                    label={k.label}
+                    icon={k.icon}
+                    color={k.color}
+                    suffix={k.suffix}
+                  />
+                </Reveal>
+              ))}
           </div>
         </div>
       </section>
 
-      {/* About */}
+      {/* =========================
+          ABOUT
+      ========================= */}
       <section className="section bg-white">
         <div className="container-x grid lg:grid-cols-2 gap-12 items-center">
           <Reveal>
@@ -202,7 +329,9 @@ export default function Home() {
         </div>
       </section>
 
-      {/* Mission & Vision */}
+      {/* =========================
+          MISSION & VISION
+      ========================= */}
       <section className="section bg-gradient-to-br from-emerald-900 to-forest-900 text-white">
         <div className="container-x grid md:grid-cols-2 gap-6">
           <Reveal>
@@ -241,7 +370,9 @@ export default function Home() {
         </div>
       </section>
 
-      {/* SDGs */}
+      {/* =========================
+          SDGs
+      ========================= */}
       <section className="section bg-cream">
         <div className="container-x">
           <SectionHeading
@@ -251,13 +382,14 @@ export default function Home() {
           />
 
           <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-5">
-            {sdgs.map((sdg, i) => (
-              <SDGCard
-                key={sdg.id}
-                sdg={sdg}
-                delay={i * 0.05}
-              />
-            ))}
+            {Array.isArray(sdgs) &&
+              sdgs.map((sdg, i) => (
+                <SDGCard
+                  key={sdg.id}
+                  sdg={sdg}
+                  delay={i * 0.05}
+                />
+              ))}
           </div>
 
           <div className="text-center mt-8">
@@ -272,7 +404,9 @@ export default function Home() {
         </div>
       </section>
 
-      {/* Upcoming events */}
+      {/* =========================
+          UPCOMING EVENTS
+      ========================= */}
       <section className="section bg-white">
         <div className="container-x">
           <SectionHeading
@@ -281,12 +415,12 @@ export default function Home() {
             subtitle="Join us at our next sustainability event."
           />
 
-          {events.length ? (
+          {Array.isArray(events) && events.length > 0 ? (
             <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-5">
-              {events.map((e, i) => (
+              {events.map((event, i) => (
                 <EventCard
-                  key={e.id}
-                  event={e}
+                  key={event.id}
+                  event={event}
                   index={i}
                 />
               ))}
@@ -300,7 +434,9 @@ export default function Home() {
         </div>
       </section>
 
-      {/* Memories */}
+      {/* =========================
+          MEMORIES
+      ========================= */}
       <section className="section bg-cream">
         <div className="container-x">
           <SectionHeading
@@ -309,54 +445,57 @@ export default function Home() {
           />
 
           <div className="grid md:grid-cols-2 gap-6">
-            {memories.map((m, i) => (
-              <Reveal
-                key={m.id}
-                delay={i * 0.08}
-              >
-                <div className="glass rounded-3xl overflow-hidden flex flex-col md:flex-row">
-                  <div className="md:w-2/5 h-44 md:h-auto bg-gradient-to-br from-emerald-600 to-green-500">
-                    {m.photo ? (
-                      <img
-                        src={m.photo}
-                        alt={m.title}
-                        className="w-full h-full object-cover"
-                      />
-                    ) : (
-                      <div className="w-full h-full grid place-items-center text-5xl">
-                        🌳
-                      </div>
-                    )}
-                  </div>
-
-                  <div className="p-6 flex-1">
-                    <div className="text-xs font-semibold text-emerald-600">
-                      {m.year}
+            {Array.isArray(memories) &&
+              memories.map((m, i) => (
+                <Reveal
+                  key={m.id}
+                  delay={i * 0.08}
+                >
+                  <div className="glass rounded-3xl overflow-hidden flex flex-col md:flex-row">
+                    <div className="md:w-2/5 h-44 md:h-auto bg-gradient-to-br from-emerald-600 to-green-500">
+                      {m.photo ? (
+                        <img
+                          src={m.photo}
+                          alt={m.title || 'Eco Club memory'}
+                          className="w-full h-full object-cover"
+                        />
+                      ) : (
+                        <div className="w-full h-full grid place-items-center text-5xl">
+                          🌳
+                        </div>
+                      )}
                     </div>
 
-                    <h3 className="font-display font-semibold text-forest-950 mt-1">
-                      {m.title}
-                    </h3>
+                    <div className="p-6 flex-1">
+                      <div className="text-xs font-semibold text-emerald-600">
+                        {m.year}
+                      </div>
 
-                    <p className="text-sm text-forest-700/80 mt-2 line-clamp-3">
-                      {m.description}
-                    </p>
+                      <h3 className="font-display font-semibold text-forest-950 mt-1">
+                        {m.title}
+                      </h3>
 
-                    <Link
-                      to="/moments"
-                      className="text-sm text-emerald-700 font-semibold mt-3 inline-block"
-                    >
-                      View Moments →
-                    </Link>
+                      <p className="text-sm text-forest-700/80 mt-2 line-clamp-3">
+                        {m.description}
+                      </p>
+
+                      <Link
+                        to="/moments"
+                        className="text-sm text-emerald-700 font-semibold mt-3 inline-block"
+                      >
+                        View Moments →
+                      </Link>
+                    </div>
                   </div>
-                </div>
-              </Reveal>
-            ))}
+                </Reveal>
+              ))}
           </div>
         </div>
       </section>
 
-      {/* Gallery preview */}
+      {/* =========================
+          GALLERY
+      ========================= */}
       <section className="section bg-white">
         <div className="container-x">
           <SectionHeading
@@ -365,36 +504,39 @@ export default function Home() {
           />
 
           <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-            {gallery.map((g) => (
-              <Link
-                key={g.id}
-                to="/gallery"
-                className="relative group overflow-hidden rounded-2xl h-40 md:h-56"
-              >
-                {g.image ? (
-                  <img
-                    src={g.image}
-                    alt={g.title || g.caption}
-                    className="w-full h-full object-cover group-hover:scale-110 transition duration-700"
-                  />
-                ) : (
-                  <div className="w-full h-full bg-gradient-to-br from-emerald-600 to-green-500 grid place-items-center text-4xl">
-                    📷
-                  </div>
-                )}
+            {Array.isArray(gallery) &&
+              gallery.map((g) => (
+                <Link
+                  key={g.id}
+                  to="/gallery"
+                  className="relative group overflow-hidden rounded-2xl h-40 md:h-56"
+                >
+                  {g.image ? (
+                    <img
+                      src={g.image}
+                      alt={g.title || g.caption || 'Eco Club activity'}
+                      className="w-full h-full object-cover group-hover:scale-110 transition duration-700"
+                    />
+                  ) : (
+                    <div className="w-full h-full bg-gradient-to-br from-emerald-600 to-green-500 grid place-items-center text-4xl">
+                      📷
+                    </div>
+                  )}
 
-                <div className="absolute inset-0 bg-black/0 group-hover:bg-black/30 transition grid place-items-center opacity-0 group-hover:opacity-100">
-                  <span className="text-white text-sm font-medium">
-                    {g.title || g.caption}
-                  </span>
-                </div>
-              </Link>
-            ))}
+                  <div className="absolute inset-0 bg-black/0 group-hover:bg-black/30 transition grid place-items-center opacity-0 group-hover:opacity-100">
+                    <span className="text-white text-sm font-medium">
+                      {g.title || g.caption}
+                    </span>
+                  </div>
+                </Link>
+              ))}
           </div>
         </div>
       </section>
 
-      {/* Team preview */}
+      {/* =========================
+          TEAM
+      ========================= */}
       <section className="section bg-cream">
         <div className="container-x">
           <SectionHeading
@@ -403,40 +545,43 @@ export default function Home() {
           />
 
           <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-5">
-            {team.map((t, i) => (
-              <Reveal
-                key={t.id}
-                delay={i * 0.07}
-              >
-                <div className="glass rounded-2xl p-5 text-center">
-                  <div className="w-20 h-20 mx-auto rounded-full overflow-hidden bg-emerald-100 grid place-items-center mb-3">
-                    {t.photo ? (
-                      <img
-                        src={t.photo}
-                        alt={t.name}
-                        className="w-full h-full object-cover"
-                      />
-                    ) : (
-                      <span className="text-2xl">👤</span>
-                    )}
-                  </div>
+            {Array.isArray(team) &&
+              team.map((t, i) => (
+                <Reveal
+                  key={t.id}
+                  delay={i * 0.07}
+                >
+                  <div className="glass rounded-2xl p-5 text-center">
+                    <div className="w-20 h-20 mx-auto rounded-full overflow-hidden bg-emerald-100 grid place-items-center mb-3">
+                      {t.photo ? (
+                        <img
+                          src={t.photo}
+                          alt={t.name || 'Team member'}
+                          className="w-full h-full object-cover"
+                        />
+                      ) : (
+                        <span className="text-2xl">
+                          👤
+                        </span>
+                      )}
+                    </div>
 
-                  <h4 className="font-semibold text-forest-950">
-                    {t.name}
-                  </h4>
+                    <h4 className="font-semibold text-forest-950">
+                      {t.name}
+                    </h4>
 
-                  <div className="text-xs text-emerald-700 font-medium capitalize">
-                    {t.role
-                      ? t.role.replace('_', ' ')
-                      : ''}
-                  </div>
+                    <div className="text-xs text-emerald-700 font-medium capitalize">
+                      {t.role
+                        ? String(t.role).replace('_', ' ')
+                        : ''}
+                    </div>
 
-                  <div className="text-xs text-forest-600/70 mt-1">
-                    {t.department}
+                    <div className="text-xs text-forest-600/70 mt-1">
+                      {t.department}
+                    </div>
                   </div>
-                </div>
-              </Reveal>
-            ))}
+                </Reveal>
+              ))}
           </div>
 
           <div className="text-center mt-8">
@@ -451,7 +596,9 @@ export default function Home() {
         </div>
       </section>
 
-      {/* CTA */}
+      {/* =========================
+          CTA
+      ========================= */}
       <section className="section bg-gradient-to-br from-emerald-700 to-green-600 text-white text-center">
         <div className="container-x">
           <Reveal>
@@ -474,7 +621,9 @@ export default function Home() {
         </div>
       </section>
 
-      {/* Announcements */}
+      {/* =========================
+          ANNOUNCEMENTS
+      ========================= */}
       <section className="section bg-white">
         <div className="container-x">
           <SectionHeading
@@ -483,32 +632,35 @@ export default function Home() {
           />
 
           <div className="space-y-3 max-w-3xl mx-auto">
-            {announcements.map((a) => (
-              <Reveal key={a.id}>
-                <div className="flex items-start gap-4 glass rounded-2xl p-5">
-                  <span className="shrink-0 w-9 h-9 rounded-full bg-emerald-100 grid place-items-center text-emerald-700">
-                    <FiCalendar />
-                  </span>
+            {Array.isArray(announcements) &&
+              announcements.map((a) => (
+                <Reveal key={a.id}>
+                  <div className="flex items-start gap-4 glass rounded-2xl p-5">
+                    <span className="shrink-0 w-9 h-9 rounded-full bg-emerald-100 grid place-items-center text-emerald-700">
+                      <FiCalendar />
+                    </span>
 
-                  <div>
-                    <h4 className="font-semibold text-forest-950">
-                      {a.title}
-                    </h4>
+                    <div>
+                      <h4 className="font-semibold text-forest-950">
+                        {a.title}
+                      </h4>
 
-                    {a.body && (
-                      <p className="text-sm text-forest-700/80 mt-1">
-                        {a.body}
-                      </p>
-                    )}
+                      {a.body && (
+                        <p className="text-sm text-forest-700/80 mt-1">
+                          {a.body}
+                        </p>
+                      )}
+                    </div>
                   </div>
-                </div>
-              </Reveal>
-            ))}
+                </Reveal>
+              ))}
           </div>
         </div>
       </section>
 
-      {/* Blog */}
+      {/* =========================
+          BLOG
+      ========================= */}
       <section className="section bg-cream">
         <div className="container-x">
           <SectionHeading
@@ -517,50 +669,53 @@ export default function Home() {
           />
 
           <div className="grid md:grid-cols-3 gap-5">
-            {blog.map((p, i) => (
-              <Reveal
-                key={p.id}
-                delay={i * 0.08}
-              >
-                <Link
-                  to={`/blog/${p.slug}`}
-                  className="glass rounded-2xl overflow-hidden hover:shadow-lg transition group block h-full"
+            {Array.isArray(blog) &&
+              blog.map((post, i) => (
+                <Reveal
+                  key={post.id}
+                  delay={i * 0.08}
                 >
-                  <div className="h-40 bg-gradient-to-br from-emerald-700 to-lime-600 overflow-hidden">
-                    {p.cover_image ? (
-                      <img
-                        src={p.cover_image}
-                        alt={p.title}
-                        className="w-full h-full object-cover group-hover:scale-105 transition"
-                      />
-                    ) : (
-                      <div className="w-full h-full grid place-items-center text-4xl">
-                        📰
-                      </div>
-                    )}
-                  </div>
-
-                  <div className="p-5">
-                    <div className="text-xs text-emerald-600 font-semibold uppercase">
-                      {p.category}
+                  <Link
+                    to={`/blog/${post.slug}`}
+                    className="glass rounded-2xl overflow-hidden hover:shadow-lg transition group block h-full"
+                  >
+                    <div className="h-40 bg-gradient-to-br from-emerald-700 to-lime-600 overflow-hidden">
+                      {post.cover_image ? (
+                        <img
+                          src={post.cover_image}
+                          alt={post.title || 'Blog post'}
+                          className="w-full h-full object-cover group-hover:scale-105 transition"
+                        />
+                      ) : (
+                        <div className="w-full h-full grid place-items-center text-4xl">
+                          📰
+                        </div>
+                      )}
                     </div>
 
-                    <h3 className="font-semibold text-forest-950 mt-1 line-clamp-2">
-                      {p.title}
-                    </h3>
+                    <div className="p-5">
+                      <div className="text-xs text-emerald-600 font-semibold uppercase">
+                        {post.category}
+                      </div>
 
-                    <p className="text-xs text-forest-600/70 mt-2">
-                      {p.excerpt}
-                    </p>
-                  </div>
-                </Link>
-              </Reveal>
-            ))}
+                      <h3 className="font-semibold text-forest-950 mt-1 line-clamp-2">
+                        {post.title}
+                      </h3>
+
+                      <p className="text-xs text-forest-600/70 mt-2">
+                        {post.excerpt}
+                      </p>
+                    </div>
+                  </Link>
+                </Reveal>
+              ))}
           </div>
         </div>
       </section>
 
-      {/* Contact CTA */}
+      {/* =========================
+          CONTACT
+      ========================= */}
       <section className="section bg-white">
         <div className="container-x text-center max-w-xl">
           <SectionHeading
@@ -570,18 +725,22 @@ export default function Home() {
           />
 
           <div className="space-y-2 text-forest-700">
-            <p>{s('address')}</p>
+            <p>
+              {s('address', '')}
+            </p>
 
             <p>
               <a
-                href={`mailto:${s('email')}`}
+                href={`mailto:${s('email', '')}`}
                 className="text-emerald-700 font-semibold"
               >
-                {s('email')}
+                {s('email', '')}
               </a>
             </p>
 
-            <p>{s('phone')}</p>
+            <p>
+              {s('phone', '')}
+            </p>
           </div>
         </div>
       </section>
