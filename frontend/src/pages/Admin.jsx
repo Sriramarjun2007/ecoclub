@@ -82,7 +82,7 @@ function Overview({ onNav }) {
   )
 }
 
-/* ---------- Generic CRUD helpers ---------- */
+
 function useList(url) {
   const [data, setData] = useState([])
   const [loading, setLoading] = useState(true)
