@@ -1,0 +1,18 @@
+# Python
+venv/
+__pycache__/
+*.pyc
+db.sqlite3
+.env
+backend/static/
+backend/media/uploads/*
+
+# Node
+node_modules/
+frontend/dist/
+
+# OS / editor
+.DS_Store
+.idea/
+.vscode/
+*.log
