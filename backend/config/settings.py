@@ -36,12 +36,7 @@ DEBUG = os.environ.get(
 
 
 ALLOWED_HOSTS = [
-    host.strip()
-    for host in os.environ.get(
-        "DJANGO_ALLOWED_HOSTS",
-        "localhost,127.0.0.1",
-    ).split(",")
-    if host.strip()
+    "ecoclub-3q19.onrender.com"
 ]
 
 
