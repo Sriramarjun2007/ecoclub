@@ -14,8 +14,17 @@ import { FiArrowRight, FiMapPin, FiCalendar } from 'react-icons/fi'
 
 const SDG_NUMS = [3, 6, 7, 11, 12, 13, 14, 15, 17]
 
-// FIX: Always return an array from API responses
-const toArray = (data) => {
+/*
+ * FIX ONLY:
+ * API responses can be either:
+ *   { results: [...] }
+ * or
+ *   [...]
+ *
+ * This helper guarantees that .map() / .filter()
+ * always receive an array.
+ */
+const getArray = (data) => {
   if (Array.isArray(data)) return data
   if (Array.isArray(data?.results)) return data.results
   return []
@@ -23,6 +32,7 @@ const toArray = (data) => {
 
 export default function Home() {
   const { s } = useSettings()
+
   const [impact, setImpact] = useState(null)
   const [sdgs, setSdgs] = useState([])
   const [events, setEvents] = useState([])
@@ -35,78 +45,96 @@ export default function Home() {
 
   useEffect(() => {
     const p = [
-
-      // Impact
       api.get('/impact/')
         .then(r => {
-          // Impact should be an object
-          if (r.data && typeof r.data === 'object' && !Array.isArray(r.data)) {
-            setImpact(r.data)
-          } else {
-            setImpact({})
-          }
+          setImpact(
+            r?.data && typeof r.data === 'object' && !Array.isArray(r.data)
+              ? r.data
+              : null
+          )
         })
-        .catch(() => setImpact({})),
+        .catch(() => {
+          setImpact(null)
+        }),
 
-      // SDGs
       api.get('/sdgs/', {
         params: { page_size: 20 }
       })
         .then(r => {
-          const all = toArray(r.data)
+          const all = getArray(r?.data)
 
           setSdgs(
             all
-              .filter(x => SDG_NUMS.includes(Number(x.number)))
+              .filter(x => x && SDG_NUMS.includes(Number(x.number)))
               .slice(0, 9)
           )
         })
-        .catch(() => setSdgs([])),
+        .catch(() => {
+          setSdgs([])
+        }),
 
-      // Events
       api.get('/events/', {
         params: {
           is_past: false,
           page_size: 6
         }
       })
-        .then(r => setEvents(toArray(r.data)))
-        .catch(() => setEvents([])),
+        .then(r => {
+          setEvents(getArray(r?.data))
+        })
+        .catch(() => {
+          setEvents([])
+        }),
 
-      // Memories
       api.get('/memories/', {
         params: { page_size: 4 }
       })
-        .then(r => setMemories(toArray(r.data)))
-        .catch(() => setMemories([])),
+        .then(r => {
+          setMemories(getArray(r?.data))
+        })
+        .catch(() => {
+          setMemories([])
+        }),
 
-      // Gallery
       api.get('/gallery/', {
         params: { page_size: 6 }
       })
-        .then(r => setGallery(toArray(r.data)))
-        .catch(() => setGallery([])),
+        .then(r => {
+          setGallery(getArray(r?.data))
+        })
+        .catch(() => {
+          setGallery([])
+        }),
 
-      // Team
       api.get('/team/', {
         params: { page_size: 6 }
       })
-        .then(r => setTeam(toArray(r.data)))
-        .catch(() => setTeam([])),
+        .then(r => {
+          setTeam(getArray(r?.data))
+        })
+        .catch(() => {
+          setTeam([])
+        }),
 
-      // Announcements
       api.get('/announcements/', {
         params: { page_size: 5 }
       })
-        .then(r => setAnnouncements(toArray(r.data)))
-        .catch(() => setAnnouncements([])),
+        .then(r => {
+          setAnnouncements(getArray(r?.data))
+        })
+        .catch(() => {
+          setAnnouncements([])
+        }),
 
-      // Blog
       api.get('/blog/', {
         params: { page_size: 3 }
       })
-        .then(r => setBlog(toArray(r.data)))
-        .catch(() => setBlog([])),
+        .then(r => {
+          setBlog(getArray(r?.data))
+        })
+        .catch(() => {
+          setBlog([])
+        }),
     ]
 
     Promise.all(p).finally(() => setLoaded(true))
@@ -205,9 +233,11 @@ export default function Home() {
           <Reveal>
             <div className="bg-white/10 border border-white/15 rounded-3xl p-8 backdrop-blur h-full">
               <div className="text-3xl mb-4">🎯</div>
+
               <h3 className="font-display text-xl font-bold">
                 Our Mission
               </h3>
+
               <p className="mt-3 text-emerald-100/80">
                 {s(
                   'mission',
@@ -220,9 +250,11 @@ export default function Home() {
           <Reveal delay={0.1}>
             <div className="bg-white/10 border border-white/15 rounded-3xl p-8 backdrop-blur h-full">
               <div className="text-3xl mb-4">🔭</div>
+
               <h3 className="font-display text-xl font-bold">
                 Our Vision
               </h3>
+
               <p className="mt-3 text-emerald-100/90">
                 {s(
                   'vision',
@@ -303,11 +335,9 @@ export default function Home() {
 
           <div className="grid md:grid-cols-2 gap-6">
             {memories.map((m, i) => (
-              <Reveal
-                key={m.id}
-                delay={i * 0.08}
-              >
+              <Reveal key={m.id} delay={i * 0.08}>
                 <div className="glass rounded-3xl overflow-hidden flex flex-col md:flex-row">
+
                   <div className="md:w-2/5 h-44 md:h-auto bg-gradient-to-br from-emerald-600 to-green-500">
                     {m.photo ? (
                       <img
@@ -342,6 +372,7 @@ export default function Home() {
                       View Moments →
                     </Link>
                   </div>
+
                 </div>
               </Reveal>
             ))}
@@ -397,11 +428,9 @@ export default function Home() {
 
           <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-5">
             {team.map((t, i) => (
-              <Reveal
-                key={t.id}
-                delay={i * 0.07}
-              >
+              <Reveal key={t.id} delay={i * 0.07}>
                 <div className="glass rounded-2xl p-5 text-center">
+
                   <div className="w-20 h-20 mx-auto rounded-full overflow-hidden bg-emerald-100 grid place-items-center mb-3">
                     {t.photo ? (
                       <img
@@ -419,12 +448,15 @@ export default function Home() {
                   </h4>
 
                   <div className="text-xs text-emerald-700 font-medium capitalize">
-                    {t.role.replace('_', ' ')}
+                    {typeof t.role === 'string'
+                      ? t.role.replace('_', ' ')
+                      : ''}
                   </div>
 
                   <div className="text-xs text-forest-600/70 mt-1">
                     {t.department}
                   </div>
+
                 </div>
               </Reveal>
             ))}
@@ -445,6 +477,7 @@ export default function Home() {
       <section className="section bg-gradient-to-br from-emerald-700 to-green-600 text-white text-center">
         <div className="container-x">
           <Reveal>
+
             <h2 className="text-3xl md:text-4xl font-bold">
               Become a Change Maker
             </h2>
@@ -460,6 +493,7 @@ export default function Home() {
             >
               Join Eco Club
             </Link>
+
           </Reveal>
         </div>
       </section>
@@ -467,6 +501,7 @@ export default function Home() {
       {/* Announcements */}
       <section className="section bg-white">
         <div className="container-x">
+
           <SectionHeading
             eyebrow="Announcements"
             title="Latest Updates"
@@ -476,6 +511,7 @@ export default function Home() {
             {announcements.map(a => (
               <Reveal key={a.id}>
                 <div className="flex items-start gap-4 glass rounded-2xl p-5">
+
                   <span className="shrink-0 w-9 h-9 rounded-full bg-emerald-100 grid place-items-center text-emerald-700">
                     <FiCalendar />
                   </span>
@@ -491,16 +527,19 @@ export default function Home() {
                       </p>
                     )}
                   </div>
+
                 </div>
               </Reveal>
             ))}
           </div>
+
         </div>
       </section>
 
       {/* Blog */}
       <section className="section bg-cream">
         <div className="container-x">
+
           <SectionHeading
             eyebrow="News & Blog"
             title="From the ECO CLUB Blog"
@@ -508,14 +547,12 @@ export default function Home() {
 
           <div className="grid md:grid-cols-3 gap-5">
             {blog.map((p, i) => (
-              <Reveal
-                key={p.id}
-                delay={i * 0.08}
-              >
+              <Reveal key={p.id} delay={i * 0.08}>
                 <Link
                   to={`/blog/${p.slug}`}
                   className="glass rounded-2xl overflow-hidden hover:shadow-lg transition group block h-full"
                 >
+
                   <div className="h-40 bg-gradient-to-br from-emerald-700 to-lime-600 overflow-hidden">
                     {p.cover_image ? (
                       <img
@@ -531,6 +568,7 @@ export default function Home() {
                   </div>
 
                   <div className="p-5">
+
                     <div className="text-xs text-emerald-600 font-semibold uppercase">
                       {p.category}
                     </div>
@@ -542,17 +580,21 @@ export default function Home() {
                     <p className="text-xs text-forest-600/70 mt-2">
                       {p.excerpt}
                     </p>
+
                   </div>
+
                 </Link>
               </Reveal>
             ))}
           </div>
+
         </div>
       </section>
 
       {/* Contact CTA */}
       <section className="section bg-white">
         <div className="container-x text-center max-w-xl">
+
           <SectionHeading
             eyebrow="Contact"
             title="Have a Question?"
@@ -573,6 +615,7 @@ export default function Home() {
 
             <p>{s('phone')}</p>
           </div>
+
         </div>
       </section>
 
