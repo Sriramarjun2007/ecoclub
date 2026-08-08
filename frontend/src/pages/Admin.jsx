@@ -1,4 +1,3 @@
-
 import React, { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import api from '../lib/api'
@@ -33,7 +32,13 @@ const TABS = [
 ============================================================ */
 
 export default function Admin() {
-  const { user, authLoading, logout, isAdmin } = useAuth()
+  const {
+    user,
+    loading: authLoading,
+    logout,
+    isAdmin,
+  } = useAuth()
+
   const navigate = useNavigate()
   const [tab, setTab] = useState('Overview')
 
@@ -45,82 +50,100 @@ export default function Admin() {
     }
   }, [authLoading, user, isAdmin, navigate])
 
-  if (authLoading || !user || !isAdmin()) {
-    return <Loader />
+  if (authLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-emerald-50">
+        <Loader />
+      </div>
+    )
   }
 
+  if (!user || !isAdmin()) {
+    return null
+  }
+
+  const displayName =
+    user?.user?.full_name ||
+    user?.full_name ||
+    user?.username ||
+    user?.email ||
+    'Administrator'
+
   return (
-    <div className="min-h-screen bg-emerald-50/40">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+    <div className="min-h-screen bg-emerald-50 pt-24 pb-10">
+      <div className="w-full max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-8">
 
         {/* HEADER */}
-        <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-5 mb-8">
-          <div>
-            <h1 className="text-3xl font-bold text-forest-950">
-              Admin Dashboard
-            </h1>
+        <div className="bg-white rounded-2xl shadow-soft border border-emerald-100 p-5 sm:p-6 mb-6">
+          <div className="flex flex-col xl:flex-row xl:items-center xl:justify-between gap-5">
 
-            <p className="mt-1 text-forest-700/70">
-              Manage the ECO CLUB platform ·{' '}
-              {user?.user?.full_name ||
-                user?.full_name ||
-                user?.username ||
-                user?.email}
-            </p>
-          </div>
+            <div className="min-w-0">
+              <h1 className="text-2xl sm:text-3xl font-bold text-forest-950">
+                Admin Dashboard
+              </h1>
 
-          <div className="flex items-center gap-2">
-            <button
-              onClick={() => navigate('/')}
-              className="px-4 py-2 rounded-lg bg-white border border-emerald-200 text-forest-800 text-sm font-medium hover:bg-emerald-50"
-            >
-              View Site
-            </button>
+              <p className="mt-1 text-sm sm:text-base text-forest-700/70 break-words">
+                Manage the ECO CLUB platform · {displayName}
+              </p>
+            </div>
 
-            <button
-              onClick={() => {
-                logout()
-                navigate('/')
-              }}
-              className="flex items-center gap-1.5 px-4 py-2 rounded-lg bg-rose-600 text-white text-sm font-medium hover:bg-rose-700"
-            >
-              <FiLogOut />
-              Logout
-            </button>
+            <div className="flex flex-wrap items-center gap-2 shrink-0">
+              <button
+                onClick={() => navigate('/')}
+                className="px-4 py-2 rounded-lg bg-white border border-emerald-200 text-forest-800 text-sm font-medium hover:bg-emerald-50 transition"
+              >
+                View Site
+              </button>
+
+              <button
+                onClick={async () => {
+                  await logout()
+                  navigate('/', { replace: true })
+                }}
+                className="flex items-center gap-1.5 px-4 py-2 rounded-lg bg-rose-600 text-white text-sm font-medium hover:bg-rose-700 transition"
+              >
+                <FiLogOut />
+                Logout
+              </button>
+            </div>
           </div>
         </div>
 
         {/* TABS */}
-        <div className="flex flex-wrap gap-2 mb-6">
-          {TABS.map((t) => (
-            <button
-              key={t}
-              onClick={() => setTab(t)}
-              className={`px-4 py-2 rounded-full text-sm font-medium transition ${
-                tab === t
-                  ? 'bg-emerald-600 text-white'
-                  : 'bg-white text-forest-700 hover:bg-emerald-50'
-              }`}
-            >
-              {t}
-            </button>
-          ))}
+        <div className="bg-white rounded-2xl shadow-soft border border-emerald-100 p-3 mb-6">
+          <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-thin">
+            {TABS.map((t) => (
+              <button
+                key={t}
+                onClick={() => setTab(t)}
+                className={`shrink-0 px-4 py-2 rounded-full text-sm font-medium transition ${
+                  tab === t
+                    ? 'bg-emerald-600 text-white shadow-sm'
+                    : 'bg-emerald-50 text-forest-700 hover:bg-emerald-100'
+                }`}
+              >
+                {t}
+              </button>
+            ))}
+          </div>
         </div>
 
         {/* CONTENT */}
-        {tab === 'Overview' && <Overview onNav={setTab} />}
-        {tab === 'Students' && <Students />}
-        {tab === 'Events' && <Events />}
-        {tab === 'Registrations' && <Registrations />}
-        {tab === 'Gallery' && <Gallery />}
-        {tab === 'Team' && <Team />}
-        {tab === 'SDGs' && <SDGs />}
-        {tab === 'Announcements' && <Announcements />}
-        {tab === 'Blog' && <Blog />}
-        {tab === 'Certificates' && <Certificates />}
-        {tab === 'Messages' && <Messages />}
-        {tab === 'Impact' && <Impact />}
-        {tab === 'Settings' && <Settings />}
+        <main className="bg-white rounded-2xl shadow-soft border border-emerald-100 p-5 sm:p-6 lg:p-8 overflow-hidden">
+          {tab === 'Overview' && <Overview onNav={setTab} />}
+          {tab === 'Students' && <Students />}
+          {tab === 'Events' && <Events />}
+          {tab === 'Registrations' && <Registrations />}
+          {tab === 'Gallery' && <Gallery />}
+          {tab === 'Team' && <Team />}
+          {tab === 'SDGs' && <SDGs />}
+          {tab === 'Announcements' && <Announcements />}
+          {tab === 'Blog' && <Blog />}
+          {tab === 'Certificates' && <Certificates />}
+          {tab === 'Messages' && <Messages />}
+          {tab === 'Impact' && <Impact />}
+          {tab === 'Settings' && <Settings />}
+        </main>
       </div>
     </div>
   )
@@ -143,7 +166,34 @@ function Overview({ onNav }) {
         if (!mounted) return
 
         console.log('Overview API:', response.data)
-        setOverview(response.data)
+
+        setOverview({
+          students:
+            response.data?.students ??
+            response.data?.members ??
+            1,
+
+          events: response.data?.events ?? 0,
+          registrations:
+            response.data?.registrations ?? 0,
+
+          volunteers:
+            response.data?.volunteers ?? 0,
+
+          trees:
+            response.data?.trees ??
+            response.data?.trees_planted ??
+            0,
+
+          waste:
+            response.data?.waste ?? 0,
+
+          water:
+            response.data?.water ?? 0,
+
+          campaigns:
+            response.data?.campaigns ?? 0,
+        })
       })
       .catch((error) => {
         console.error(
@@ -154,7 +204,7 @@ function Overview({ onNav }) {
         if (!mounted) return
 
         setOverview({
-          students: 0,
+          students: 1,
           events: 0,
           registrations: 0,
           volunteers: 0,
@@ -162,7 +212,6 @@ function Overview({ onNav }) {
           waste: 0,
           water: 0,
           campaigns: 0,
-          members: 0,
         })
       })
       .finally(() => {
@@ -179,25 +228,25 @@ function Overview({ onNav }) {
   const cards = [
     [
       'Students',
-      overview?.students,
+      overview?.students ?? 1,
       'Registered students',
       () => onNav('Students'),
     ],
     [
       'Events',
-      overview?.events,
+      overview?.events ?? 0,
       'Total events',
       () => onNav('Events'),
     ],
     [
       'Registrations',
-      overview?.registrations,
+      overview?.registrations ?? 0,
       'Event registrations',
       () => onNav('Registrations'),
     ],
     [
       'Trees Planted',
-      overview?.trees,
+      overview?.trees ?? 0,
       'Environmental impact',
       () => onNav('Impact'),
     ],
@@ -207,40 +256,48 @@ function Overview({ onNav }) {
     <div className="space-y-8">
 
       {/* OVERVIEW */}
-      <div>
-        <h2 className="text-xl font-bold text-forest-950 mb-4">
-          Overview
-        </h2>
+      <section>
+        <div className="mb-4">
+          <h2 className="text-xl font-bold text-forest-950">
+            Overview
+          </h2>
+
+          <p className="text-sm text-forest-600 mt-1">
+            Quick summary of your ECO CLUB platform.
+          </p>
+        </div>
 
         {loading ? (
           <Loader />
         ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-            {cards.map(([label, value, subtitle, go]) => (
-              <button
-                key={label}
-                onClick={go}
-                className="text-left bg-white rounded-2xl p-5 shadow-soft hover:-translate-y-0.5 transition"
-              >
-                <div className="text-sm text-forest-600">
-                  {label}
-                </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
+            {cards.map(
+              ([label, value, subtitle, go]) => (
+                <button
+                  key={label}
+                  onClick={go}
+                  className="text-left bg-emerald-50 border border-emerald-100 rounded-2xl p-5 hover:bg-emerald-100 hover:-translate-y-0.5 transition"
+                >
+                  <div className="text-sm font-medium text-forest-600">
+                    {label}
+                  </div>
 
-                <div className="text-3xl font-bold text-forest-950 mt-2">
-                  {Number(value || 0).toLocaleString()}
-                </div>
+                  <div className="text-3xl font-bold text-forest-950 mt-2">
+                    {Number(value ?? 0).toLocaleString()}
+                  </div>
 
-                <div className="text-xs text-forest-500 mt-1">
-                  {subtitle}
-                </div>
-              </button>
-            ))}
+                  <div className="text-xs text-forest-500 mt-1">
+                    {subtitle}
+                  </div>
+                </button>
+              )
+            )}
           </div>
         )}
-      </div>
+      </section>
 
       {/* QUICK ACTIONS */}
-      <div>
+      <section>
         <h2 className="text-xl font-bold text-forest-950 mb-4">
           Quick Actions
         </h2>
@@ -254,19 +311,22 @@ function Overview({ onNav }) {
             ['Blog Posts', 'Blog'],
             ['Announcements', 'Announcements'],
             ['Website Settings', 'Settings'],
-            ['Certificate / Participants', 'Certificates'],
+            [
+              'Certificate / Participants',
+              'Certificates',
+            ],
           ].map(([label, target]) => (
             <button
               key={target}
               onClick={() => onNav(target)}
-              className="text-left px-4 py-3 rounded-xl bg-emerald-50 hover:bg-emerald-100 text-forest-800 font-medium text-sm"
+              className="text-left px-4 py-3 rounded-xl bg-emerald-50 hover:bg-emerald-100 border border-emerald-100 text-forest-800 font-medium text-sm transition"
             >
-              {label} →
+              {label}
+              <span className="ml-2">→</span>
             </button>
           ))}
         </div>
-      </div>
-
+      </section>
     </div>
   )
 }
@@ -279,29 +339,32 @@ function useList(url) {
   const [data, setData] = useState([])
   const [loading, setLoading] = useState(true)
 
-  const reload = () => {
+  const reload = async () => {
     setLoading(true)
 
-    api
-      .get(url)
-      .then((response) => {
-        setData(
-          response.data?.results ||
-            response.data ||
-            []
-        )
-      })
-      .catch((error) => {
-        console.error(
-          `API error: ${url}`,
-          error.response?.data || error
-        )
+    try {
+      const response = await api.get(url)
 
-        setData([])
-      })
-      .finally(() => {
-        setLoading(false)
-      })
+      const result =
+        response.data?.results ??
+        response.data ??
+        []
+
+      setData(
+        Array.isArray(result)
+          ? result
+          : []
+      )
+    } catch (error) {
+      console.error(
+        `API error: ${url}`,
+        error.response?.data || error
+      )
+
+      setData([])
+    } finally {
+      setLoading(false)
+    }
   }
 
   useEffect(() => {
@@ -332,45 +395,48 @@ function Modal({
 
   return (
     <div
-      className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-4"
+      className="fixed inset-0 z-[9999] bg-black/50 backdrop-blur-sm p-4 flex items-center justify-center"
       onClick={onClose}
     >
       <div
-        className="bg-white rounded-2xl w-full max-w-lg max-h-[85vh] overflow-auto p-6"
+        className="bg-white rounded-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto shadow-2xl"
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="flex items-center justify-between mb-5">
-          <h3 className="text-xl font-bold text-forest-950">
+        <div className="sticky top-0 z-10 bg-white border-b border-emerald-100 px-6 py-4 flex items-center justify-between">
+          <h3 className="text-lg font-bold text-forest-950">
             {title}
           </h3>
 
           <button
             onClick={onClose}
-            className="text-gray-500 hover:text-gray-800 text-2xl"
+            className="w-9 h-9 rounded-lg hover:bg-gray-100 text-gray-500 hover:text-gray-800 text-2xl flex items-center justify-center"
           >
             ×
           </button>
         </div>
 
-        <div className="space-y-4">
-          {children}
-        </div>
+        <div className="p-6">
+          <div className="space-y-4">
+            {children}
+          </div>
 
-        <div className="flex gap-3 mt-6">
-          <button
-            onClick={onSave}
-            disabled={saving}
-            className={`flex-1 py-2.5 rounded-lg text-white font-semibold disabled:opacity-60 ${color}`}
-          >
-            {saving ? 'Saving…' : 'Save'}
-          </button>
+          <div className="flex flex-col sm:flex-row gap-3 mt-6">
+            <button
+              onClick={onSave}
+              disabled={saving}
+              className={`flex-1 py-2.5 rounded-lg text-white font-semibold disabled:opacity-60 ${color}`}
+            >
+              {saving ? 'Saving…' : 'Save'}
+            </button>
 
-          <button
-            onClick={onClose}
-            className="flex-1 py-2.5 rounded-lg bg-gray-100 text-gray-700 font-semibold"
-          >
-            Cancel
-          </button>
+            <button
+              onClick={onClose}
+              disabled={saving}
+              className="flex-1 py-2.5 rounded-lg bg-gray-100 text-gray-700 font-semibold hover:bg-gray-200"
+            >
+              Cancel
+            </button>
+          </div>
         </div>
       </div>
     </div>
@@ -404,9 +470,7 @@ function Students() {
     try {
       await api.patch(
         `/auth/memberships/${id}/`,
-        {
-          status,
-        }
+        { status }
       )
 
       toast('Updated')
@@ -427,8 +491,7 @@ function Students() {
   }
 
   return (
-    <div className="bg-white rounded-2xl p-5 shadow-soft">
-
+    <div>
       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-6">
         <div>
           <h2 className="text-xl font-bold text-forest-950">
@@ -443,8 +506,8 @@ function Students() {
         <input
           value={q}
           onChange={(e) => setQ(e.target.value)}
-          placeholder="Search…"
-          className="px-3 py-2 rounded-lg border border-emerald-200 text-sm outline-none"
+          placeholder="Search students..."
+          className="w-full md:w-72 px-3 py-2 rounded-lg border border-emerald-200 text-sm outline-none focus:ring-2 focus:ring-emerald-200"
         />
       </div>
 
@@ -452,15 +515,15 @@ function Students() {
         <Loader />
       ) : filtered.length ? (
         <div className="overflow-x-auto">
-          <table className="w-full text-sm">
+          <table className="w-full text-sm min-w-[800px]">
             <thead>
-              <tr className="border-b text-left">
-                <th className="py-3">Member</th>
-                <th className="py-3">Member ID</th>
-                <th className="py-3">Department</th>
-                <th className="py-3">Status</th>
-                <th className="py-3">Points</th>
-                <th className="py-3">Action</th>
+              <tr className="border-b text-left text-forest-700">
+                <th className="py-3 px-2">Member</th>
+                <th className="py-3 px-2">Member ID</th>
+                <th className="py-3 px-2">Department</th>
+                <th className="py-3 px-2">Status</th>
+                <th className="py-3 px-2">Points</th>
+                <th className="py-3 px-2">Action</th>
               </tr>
             </thead>
 
@@ -468,24 +531,24 @@ function Students() {
               {filtered.map((m) => (
                 <tr
                   key={m.id}
-                  className="border-b last:border-0"
+                  className="border-b last:border-0 hover:bg-emerald-50/50"
                 >
-                  <td className="py-3">
+                  <td className="py-3 px-2">
                     {m.profile?.user?.full_name ||
                       m.membership_id}
                   </td>
 
-                  <td className="py-3">
+                  <td className="py-3 px-2">
                     {m.membership_id}
                   </td>
 
-                  <td className="py-3">
+                  <td className="py-3 px-2">
                     {m.profile?.department || '—'}
                   </td>
 
-                  <td className="py-3">
+                  <td className="py-3 px-2">
                     <span
-                      className={`px-2 py-0.5 rounded-full text-xs font-semibold ${
+                      className={`px-2 py-1 rounded-full text-xs font-semibold ${
                         m.status === 'approved'
                           ? 'bg-emerald-100 text-emerald-700'
                           : m.status === 'rejected'
@@ -493,15 +556,15 @@ function Students() {
                           : 'bg-amber-100 text-amber-700'
                       }`}
                     >
-                      {m.status}
+                      {m.status || 'pending'}
                     </span>
                   </td>
 
-                  <td className="py-3">
+                  <td className="py-3 px-2">
                     {m.eco_points || 0}
                   </td>
 
-                  <td className="py-3">
+                  <td className="py-3 px-2">
                     <div className="flex gap-2">
                       {m.status !== 'approved' && (
                         <button
@@ -556,6 +619,7 @@ function Events() {
   } = useList('/events/?page_size=100')
 
   const toast = useToast()
+
   const [modal, setModal] = useState(false)
   const [form, setForm] = useState({})
   const [saving, setSaving] = useState(false)
@@ -578,7 +642,6 @@ function Events() {
         toast('Event updated')
       } else {
         await api.post('/events/', form)
-
         toast('Event created')
       }
 
@@ -609,26 +672,27 @@ function Events() {
 
     try {
       await api.delete(`/events/${id}/`)
-
       toast('Deleted')
       reload()
     } catch (error) {
       console.error(error)
-      toast('Unable to delete event', 'error')
+      toast(
+        'Unable to delete event',
+        'error'
+      )
     }
   }
 
   return (
-    <div className="bg-white rounded-2xl p-5 shadow-soft">
-
-      <div className="flex items-center justify-between mb-6">
+    <div>
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-6">
         <h2 className="text-xl font-bold text-forest-950">
           Events
         </h2>
 
         <button
           onClick={openNew}
-          className="flex items-center gap-2 px-4 py-2 rounded-lg bg-emerald-600 text-white text-sm font-semibold"
+          className="flex items-center justify-center gap-2 px-4 py-2 rounded-lg bg-emerald-600 text-white text-sm font-semibold"
         >
           <FiPlus />
           New Event
@@ -644,13 +708,14 @@ function Events() {
               key={event.id}
               className="border border-emerald-100 rounded-xl p-4 flex flex-col md:flex-row md:items-center justify-between gap-3"
             >
-              <div>
+              <div className="min-w-0">
                 <h3 className="font-semibold text-forest-950">
                   {event.title}
                 </h3>
 
                 <p className="text-sm text-forest-600 mt-1">
-                  {event.date} · {event.venue}
+                  {event.date || 'No date'} ·{' '}
+                  {event.venue || 'No venue'}
                 </p>
 
                 <p className="text-xs text-forest-500 mt-1">
@@ -660,7 +725,7 @@ function Events() {
                 </p>
               </div>
 
-              <div className="flex gap-2">
+              <div className="flex gap-2 shrink-0">
                 <button
                   onClick={() => {
                     setForm(event)
@@ -765,23 +830,17 @@ function Events() {
           }
         />
 
-        <div>
-          <label className="block text-sm font-medium text-forest-800 mb-1">
-            Description
-          </label>
-
-          <textarea
-            value={form.description || ''}
-            onChange={(e) =>
-              setForm((f) => ({
-                ...f,
-                description: e.target.value,
-              }))
-            }
-            rows={3}
-            className="w-full px-3 py-2 rounded-lg border border-emerald-200 text-sm outline-none"
-          />
-        </div>
+        <TextArea
+          label="Description"
+          value={form.description}
+          rows={4}
+          onChange={(value) =>
+            setForm((f) => ({
+              ...f,
+              description: value,
+            }))
+          }
+        />
       </Modal>
     </div>
   )
@@ -795,11 +854,12 @@ function Registrations() {
   const {
     data,
     loading,
-  } = useList('/registrations/?page_size=100')
+  } = useList(
+    '/registrations/?page_size=100'
+  )
 
   return (
-    <div className="bg-white rounded-2xl p-5 shadow-soft">
-
+    <div>
       <h2 className="text-xl font-bold text-forest-950 mb-5">
         Event Registrations
       </h2>
@@ -852,6 +912,7 @@ function Gallery() {
   } = useList('/gallery/?page_size=100')
 
   const toast = useToast()
+
   const [file, setFile] = useState(null)
   const [title, setTitle] = useState('')
   const [uploading, setUploading] = useState(false)
@@ -911,6 +972,7 @@ function Gallery() {
       reload()
     } catch (error) {
       console.error(error)
+
       toast(
         'Delete failed',
         'error'
@@ -919,8 +981,7 @@ function Gallery() {
   }
 
   return (
-    <div className="bg-white rounded-2xl p-5 shadow-soft">
-
+    <div>
       <h2 className="text-xl font-bold text-forest-950 mb-5">
         Photo Gallery
       </h2>
@@ -964,7 +1025,7 @@ function Gallery() {
           {data.map((gallery) => (
             <div
               key={gallery.id}
-              className="group relative rounded-xl overflow-hidden bg-emerald-50"
+              className="group relative rounded-xl overflow-hidden bg-emerald-50 border border-emerald-100"
             >
               {gallery.image ? (
                 <img
@@ -1018,6 +1079,7 @@ function Team() {
   } = useList('/team/?page_size=100')
 
   const toast = useToast()
+
   const [form, setForm] = useState({})
   const [modal, setModal] = useState(false)
   const [saving, setSaving] = useState(false)
@@ -1079,9 +1141,8 @@ function Team() {
   }
 
   return (
-    <div className="bg-white rounded-2xl p-5 shadow-soft">
-
-      <div className="flex items-center justify-between mb-6">
+    <div>
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-6">
         <h2 className="text-xl font-bold text-forest-950">
           Team Members
         </h2>
@@ -1105,9 +1166,9 @@ function Team() {
           {data.map((member) => (
             <div
               key={member.id}
-              className="border border-emerald-100 rounded-xl p-4 flex justify-between"
+              className="border border-emerald-100 rounded-xl p-4 flex justify-between gap-3"
             >
-              <div>
+              <div className="min-w-0">
                 <div className="font-semibold">
                   {member.name}
                 </div>
@@ -1115,7 +1176,7 @@ function Team() {
                 <div className="text-sm text-emerald-700 capitalize">
                   {(member.role || '')
                     .replace(
-                      '_',
+                      /_/g,
                       ' '
                     )}
                 </div>
@@ -1125,7 +1186,7 @@ function Team() {
                 </div>
               </div>
 
-              <div className="flex gap-2">
+              <div className="flex gap-2 shrink-0">
                 <button
                   onClick={() => {
                     setForm(member)
@@ -1228,6 +1289,7 @@ function Team() {
 
         <Field
           label="Email"
+          type="email"
           value={form.email}
           onChange={(value) =>
             setForm((f) => ({
@@ -1253,6 +1315,7 @@ function SDGs() {
   } = useList('/sdgs/?page_size=20')
 
   const toast = useToast()
+
   const [form, setForm] = useState({})
   const [modal, setModal] = useState(false)
   const [saving, setSaving] = useState(false)
@@ -1292,9 +1355,8 @@ function SDGs() {
   }
 
   return (
-    <div className="bg-white rounded-2xl p-5 shadow-soft">
-
-      <div className="flex items-center justify-between mb-6">
+    <div>
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-6">
         <h2 className="text-xl font-bold text-forest-950">
           Sustainable Development Goals
         </h2>
@@ -1320,7 +1382,7 @@ function SDGs() {
               className="flex items-center gap-3 border border-emerald-100 rounded-xl p-4"
             >
               <span
-                className="w-10 h-10 rounded-lg grid place-items-center text-white font-bold text-sm"
+                className="w-10 h-10 rounded-lg grid place-items-center text-white font-bold text-sm shrink-0"
                 style={{
                   background:
                     sdg.color ||
@@ -1353,7 +1415,11 @@ function SDGs() {
         onClose={() =>
           setModal(false)
         }
-        title="Add SDG"
+        title={
+          form.id
+            ? 'Edit SDG'
+            : 'Add SDG'
+        }
         onSave={save}
         saving={saving}
       >
@@ -1402,27 +1468,17 @@ function SDGs() {
           }
         />
 
-        <div>
-          <label className="block text-sm font-medium text-forest-800 mb-1">
-            Contribution
-          </label>
-
-          <textarea
-            value={
-              form.contribution ||
-              ''
-            }
-            onChange={(e) =>
-              setForm((f) => ({
-                ...f,
-                contribution:
-                  e.target.value,
-              }))
-            }
-            rows={2}
-            className="w-full px-3 py-2 rounded-lg border border-emerald-200 text-sm"
-          />
-        </div>
+        <TextArea
+          label="Contribution"
+          value={form.contribution}
+          rows={3}
+          onChange={(value) =>
+            setForm((f) => ({
+              ...f,
+              contribution: value,
+            }))
+          }
+        />
       </Modal>
     </div>
   )
@@ -1442,6 +1498,7 @@ function Announcements() {
   )
 
   const toast = useToast()
+
   const [form, setForm] = useState({})
   const [modal, setModal] = useState(false)
   const [saving, setSaving] = useState(false)
@@ -1503,9 +1560,8 @@ function Announcements() {
   }
 
   return (
-    <div className="bg-white rounded-2xl p-5 shadow-soft">
-
-      <div className="flex items-center justify-between mb-6">
+    <div>
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-6">
         <h2 className="text-xl font-bold text-forest-950">
           Announcements
         </h2>
@@ -1528,9 +1584,9 @@ function Announcements() {
           {data.map((announcement) => (
             <div
               key={announcement.id}
-              className="border border-emerald-100 rounded-xl p-4 flex justify-between"
+              className="border border-emerald-100 rounded-xl p-4 flex justify-between gap-3"
             >
-              <div>
+              <div className="min-w-0">
                 <div className="font-semibold">
                   {announcement.title}
                 </div>
@@ -1547,7 +1603,7 @@ function Announcements() {
                 onClick={() =>
                   del(announcement.id)
                 }
-                className="p-2 rounded bg-rose-50 text-rose-600"
+                className="p-2 rounded bg-rose-50 text-rose-600 shrink-0"
               >
                 <FiTrash2 />
               </button>
@@ -1582,25 +1638,17 @@ function Announcements() {
           }
         />
 
-        <div>
-          <label className="block text-sm font-medium text-forest-800 mb-1">
-            Body
-          </label>
-
-          <textarea
-            value={
-              form.body || ''
-            }
-            onChange={(e) =>
-              setForm((f) => ({
-                ...f,
-                body: e.target.value,
-              }))
-            }
-            rows={4}
-            className="w-full px-3 py-2 rounded-lg border border-emerald-200 text-sm"
-          />
-        </div>
+        <TextArea
+          label="Body"
+          value={form.body}
+          rows={5}
+          onChange={(value) =>
+            setForm((f) => ({
+              ...f,
+              body: value,
+            }))
+          }
+        />
       </Modal>
     </div>
   )
@@ -1620,6 +1668,7 @@ function Blog() {
   )
 
   const toast = useToast()
+
   const [form, setForm] = useState({})
   const [modal, setModal] = useState(false)
   const [saving, setSaving] = useState(false)
@@ -1681,9 +1730,8 @@ function Blog() {
   }
 
   return (
-    <div className="bg-white rounded-2xl p-5 shadow-soft">
-
-      <div className="flex items-center justify-between mb-6">
+    <div>
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-6">
         <h2 className="text-xl font-bold text-forest-950">
           Blog Posts
         </h2>
@@ -1706,9 +1754,9 @@ function Blog() {
           {data.map((post) => (
             <div
               key={post.id}
-              className="border border-emerald-100 rounded-xl p-4 flex justify-between"
+              className="border border-emerald-100 rounded-xl p-4 flex justify-between gap-3"
             >
-              <div>
+              <div className="min-w-0">
                 <div className="font-semibold">
                   {post.title}
                 </div>
@@ -1726,7 +1774,7 @@ function Blog() {
                 onClick={() =>
                   del(post.id)
                 }
-                className="p-2 rounded bg-rose-50 text-rose-600"
+                className="p-2 rounded bg-rose-50 text-rose-600 shrink-0"
               >
                 <FiTrash2 />
               </button>
@@ -1783,26 +1831,17 @@ function Blog() {
           }
         />
 
-        <div>
-          <label className="block text-sm font-medium text-forest-800 mb-1">
-            Content
-          </label>
-
-          <textarea
-            value={
-              form.content || ''
-            }
-            onChange={(e) =>
-              setForm((f) => ({
-                ...f,
-                content:
-                  e.target.value,
-              }))
-            }
-            rows={5}
-            className="w-full px-3 py-2 rounded-lg border border-emerald-200 text-sm"
-          />
-        </div>
+        <TextArea
+          label="Content"
+          value={form.content}
+          rows={7}
+          onChange={(value) =>
+            setForm((f) => ({
+              ...f,
+              content: value,
+            }))
+          }
+        />
       </Modal>
     </div>
   )
@@ -1849,8 +1888,7 @@ function Certificates() {
   }
 
   return (
-    <div className="bg-white rounded-2xl p-5 shadow-soft">
-
+    <div>
       <h2 className="text-xl font-bold text-forest-950">
         Event Participants → Certificates
       </h2>
@@ -1867,7 +1905,7 @@ function Certificates() {
           {data.map((participant) => (
             <div
               key={participant.id}
-              className="border border-emerald-100 rounded-xl p-4 flex items-center justify-between gap-4"
+              className="border border-emerald-100 rounded-xl p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4"
             >
               <div>
                 <div className="font-semibold">
@@ -1919,8 +1957,7 @@ function Messages() {
   )
 
   return (
-    <div className="bg-white rounded-2xl p-5 shadow-soft">
-
+    <div>
       <h2 className="text-xl font-bold text-forest-950 mb-5">
         Contact Messages
       </h2>
@@ -2017,8 +2054,7 @@ function Impact() {
   }
 
   return (
-    <div className="bg-white rounded-2xl p-5 shadow-soft">
-
+    <div>
       <h2 className="text-xl font-bold text-forest-950 mb-5">
         Impact Statistics
       </h2>
@@ -2034,7 +2070,8 @@ function Impact() {
             >
               <div>
                 <div className="font-semibold capitalize">
-                  {(item.label ||
+                  {(
+                    item.label ||
                     item.metric ||
                     ''
                   ).replace(
@@ -2111,16 +2148,11 @@ function Settings() {
       ) {
         await api.patch(
           `/settings/admin/${id}/`,
-          {
-            value,
-          }
+          { value }
         )
       }
 
-      toast(
-        'Settings saved'
-      )
-
+      toast('Settings saved')
       setEdits({})
       reload()
     } catch (error) {
@@ -2137,8 +2169,7 @@ function Settings() {
   }
 
   return (
-    <div className="bg-white rounded-2xl p-5 shadow-soft">
-
+    <div>
       <h2 className="text-xl font-bold text-forest-950 mb-5">
         Website Settings
       </h2>
@@ -2166,7 +2197,7 @@ function Settings() {
                         e.target.value,
                     }))
                   }
-                  className="w-full mt-1 px-3 py-2 rounded-lg border border-emerald-200 text-sm"
+                  className="w-full mt-1 px-3 py-2 rounded-lg border border-emerald-200 text-sm outline-none focus:ring-2 focus:ring-emerald-200"
                 />
               </div>
             ))}
@@ -2201,13 +2232,13 @@ function Field({
   type = 'text',
   options = [],
 }) {
-  if (type === 'select') {
-    return (
-      <div>
-        <label className="block text-sm font-medium text-forest-800 mb-1">
-          {label}
-        </label>
+  return (
+    <div>
+      <label className="block text-sm font-medium text-forest-800 mb-1">
+        {label}
+      </label>
 
+      {type === 'select' ? (
         <select
           value={value || ''}
           onChange={(e) =>
@@ -2227,33 +2258,52 @@ function Field({
               value={option}
             >
               {option.replace(
-                '_',
+                /_/g,
                 ' '
               )}
             </option>
           ))}
         </select>
-      </div>
-    )
-  }
+      ) : (
+        <input
+          type={type}
+          value={value ?? ''}
+          onChange={(e) =>
+            onChange(
+              e.target.value
+            )
+          }
+          className="w-full px-3 py-2 rounded-lg border border-emerald-200 text-sm outline-none focus:ring-2 focus:ring-emerald-200"
+        />
+      )}
+    </div>
+  )
+}
 
+/* ============================================================
+   TEXTAREA
+============================================================ */
+
+function TextArea({
+  label,
+  value,
+  onChange,
+  rows = 4,
+}) {
   return (
     <div>
       <label className="block text-sm font-medium text-forest-800 mb-1">
         {label}
       </label>
 
-      <input
-        type={type}
+      <textarea
         value={value ?? ''}
         onChange={(e) =>
-          onChange(
-            e.target.value
-          )
+          onChange(e.target.value)
         }
-        className="w-full px-3 py-2 rounded-lg border border-emerald-200 text-sm outline-none"
+        rows={rows}
+        className="w-full px-3 py-2 rounded-lg border border-emerald-200 text-sm outline-none resize-y focus:ring-2 focus:ring-emerald-200"
       />
     </div>
   )
 }
-
