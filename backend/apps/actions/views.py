@@ -1,3 +1,4 @@
+
 from django.utils.text import slugify
 
 from rest_framework import (
@@ -7,6 +8,9 @@ from rest_framework import (
     status,
 )
 from rest_framework.response import Response
+
+from apps.accounts.models import User, Membership
+from apps.accounts.permissions import IsClubAdmin
 
 from .models import (
     Announcement,
@@ -36,8 +40,6 @@ from .serializers import (
     WebsiteSettingSerializer,
 )
 
-from apps.accounts.permissions import IsClubAdmin
-
 
 # ============================================================
 # ADMIN OR READ ONLY
@@ -49,12 +51,130 @@ class IsAdminOrReadOnly(permissions.BasePermission):
 
     def has_permission(self, request, view):
 
+        # Public users can GET/HEAD/OPTIONS
         if request.method in permissions.SAFE_METHODS:
             return True
 
+        # Only Eco Club admins can modify content
         return IsClubAdmin().has_permission(
             request,
             view,
+        )
+
+
+# ============================================================
+# ADMIN OVERVIEW
+# ============================================================
+
+class OverviewView(views.APIView):
+
+    permission_classes = [
+        IsClubAdmin
+    ]
+
+    def get(self, request):
+
+        # ----------------------------------------------------
+        # TOTAL STUDENTS
+        # ----------------------------------------------------
+
+        students_count = User.objects.filter(
+            role="student"
+        ).count()
+
+        # ----------------------------------------------------
+        # APPROVED MEMBERS
+        # ----------------------------------------------------
+
+        approved_members_count = Membership.objects.filter(
+            status="approved"
+        ).count()
+
+        # ----------------------------------------------------
+        # PENDING MEMBERS
+        # ----------------------------------------------------
+
+        pending_members_count = Membership.objects.filter(
+            status="pending"
+        ).count()
+
+        # ----------------------------------------------------
+        # REJECTED MEMBERS
+        # ----------------------------------------------------
+
+        rejected_members_count = Membership.objects.filter(
+            status="rejected"
+        ).count()
+
+        # ----------------------------------------------------
+        # EVENTS
+        # ----------------------------------------------------
+
+        events_count = 0
+
+        # ----------------------------------------------------
+        # REGISTRATIONS
+        # ----------------------------------------------------
+
+        registrations_count = 0
+
+        # ----------------------------------------------------
+        # IMPACT STATISTICS
+        # ----------------------------------------------------
+
+        stats = dict(
+            ImpactStatistic.objects.values_list(
+                "metric",
+                "value",
+            )
+        )
+
+        # ----------------------------------------------------
+        # RESPONSE
+        # ----------------------------------------------------
+
+        return Response(
+            {
+                "students": students_count,
+
+                "events": events_count,
+
+                "registrations": registrations_count,
+
+                "volunteers": stats.get(
+                    "volunteers",
+                    0,
+                ),
+
+                "trees": stats.get(
+                    "trees",
+                    0,
+                ),
+
+                "waste": stats.get(
+                    "waste",
+                    0,
+                ),
+
+                "water": stats.get(
+                    "water",
+                    0,
+                ),
+
+                "campaigns": stats.get(
+                    "campaigns",
+                    0,
+                ),
+
+                "members": approved_members_count,
+
+                "approved_members": approved_members_count,
+
+                "pending_members": pending_members_count,
+
+                "rejected_members": rejected_members_count,
+            },
+            status=status.HTTP_200_OK,
         )
 
 
@@ -79,6 +199,7 @@ class SDGViewSet(viewsets.ModelViewSet):
     ]
 
     def get_queryset(self):
+
         qs = super().get_queryset()
 
         if self.request.query_params.get("featured"):
@@ -463,3 +584,4 @@ class UploadViewSet(
     permission_classes = [
         IsClubAdmin
     ]
+

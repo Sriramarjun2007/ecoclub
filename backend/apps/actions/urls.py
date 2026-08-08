@@ -16,6 +16,7 @@ from .views import (
     SettingsView,
     TeamViewSet,
     UploadViewSet,
+    OverviewView,
 )
 
 
@@ -24,19 +25,11 @@ app_name = "actions"
 
 router = DefaultRouter()
 
-# ============================================================
-# SDG
-# ============================================================
-
 router.register(
     r"sdgs",
     SDGViewSet,
     basename="sdg",
 )
-
-# ============================================================
-# GALLERY
-# ============================================================
 
 router.register(
     r"gallery/categories",
@@ -50,19 +43,11 @@ router.register(
     basename="gallery",
 )
 
-# ============================================================
-# MEMORIES
-# ============================================================
-
 router.register(
     r"memories",
     MemoryViewSet,
     basename="memory",
 )
-
-# ============================================================
-# TEAM
-# ============================================================
 
 router.register(
     r"team",
@@ -70,19 +55,11 @@ router.register(
     basename="team",
 )
 
-# ============================================================
-# ANNOUNCEMENTS
-# ============================================================
-
 router.register(
     r"announcements",
     AnnouncementViewSet,
     basename="announcement",
 )
-
-# ============================================================
-# BLOG
-# ============================================================
 
 router.register(
     r"blog",
@@ -90,19 +67,11 @@ router.register(
     basename="blog",
 )
 
-# ============================================================
-# CONTACT ADMIN
-# ============================================================
-
 router.register(
     r"contact/admin",
     ContactAdminViewSet,
     basename="contact-admin",
 )
-
-# ============================================================
-# IMPACT ADMIN
-# ============================================================
 
 router.register(
     r"impact/admin",
@@ -110,19 +79,11 @@ router.register(
     basename="impact-admin",
 )
 
-# ============================================================
-# SETTINGS ADMIN
-# ============================================================
-
 router.register(
     r"settings/admin",
     SettingsAdminViewSet,
     basename="settings-admin",
 )
-
-# ============================================================
-# UPLOADS
-# ============================================================
 
 router.register(
     r"uploads",
@@ -131,15 +92,18 @@ router.register(
 )
 
 
-# ============================================================
-# URLS
-# ============================================================
-
 urlpatterns = [
     # Router APIs
     path(
         "",
         include(router.urls),
+    ),
+
+    # Dashboard overview
+    path(
+        "overview/",
+        OverviewView.as_view(),
+        name="overview",
     ),
 
     # Public contact form
@@ -156,7 +120,7 @@ urlpatterns = [
         name="impact",
     ),
 
-    # Public website settings
+    # Public settings
     path(
         "settings/",
         SettingsView.as_view(),
