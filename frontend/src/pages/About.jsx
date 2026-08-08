@@ -1,9 +1,9 @@
+
 import React, { useEffect, useState } from 'react'
 import api from '../lib/api'
 import { useSettings } from '../context/SettingsContext'
 import { SectionHeading, Reveal } from '../components/Reveal'
 import { StatCounter, META } from '../components/StatCounter'
-import Loader from '../components/Loader'
 
 export default function About() {
   const { s } = useSettings()
@@ -20,10 +20,6 @@ export default function About() {
       })
   }, [])
 
-  // ============================================================
-  // TECHNICAL ECO CLUB OBJECTIVES
-  // ============================================================
-
   const objectives = [
     'Technical innovation for environmental sustainability',
     'AI and machine learning solutions for environmental challenges',
@@ -34,10 +30,6 @@ export default function About() {
     'Student projects focused on real-world environmental problems',
     'Community outreach through technology and digital awareness',
   ]
-
-  // ============================================================
-  // IMPACT DATA
-  // ============================================================
 
   const impactList =
     impact && typeof impact === 'object' && !Array.isArray(impact)
@@ -56,7 +48,7 @@ export default function About() {
       : []
 
   return (
-    <>
+    <main className="pt-24">
       {/* ========================================================
           PAGE HEADING
       ======================================================== */}
@@ -107,10 +99,7 @@ export default function About() {
               innovative ideas into meaningful environmental impact.
             </p>
 
-            {/* ====================================================
-                IMPACT
-            ==================================================== */}
-
+            {/* IMPACT */}
             {impactList.length > 0 && (
               <div className="grid grid-cols-2 gap-4 mt-8">
                 {impactList.slice(0, 6).map((item, index) => (
@@ -171,7 +160,6 @@ export default function About() {
         <div className="container-x grid md:grid-cols-2 gap-6">
 
           {/* MISSION */}
-
           <Reveal>
             <div className="rounded-3xl p-8 bg-white shadow-soft h-full">
 
@@ -194,7 +182,6 @@ export default function About() {
           </Reveal>
 
           {/* VISION */}
-
           <Reveal delay={0.1}>
             <div className="rounded-3xl p-8 bg-gradient-to-br from-emerald-700 to-green-600 text-white shadow-soft h-full">
 
@@ -218,6 +205,7 @@ export default function About() {
 
         </div>
       </section>
-    </>
+    </main>
   )
 }
+
