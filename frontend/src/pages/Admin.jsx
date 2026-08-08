@@ -1,3 +1,4 @@
+
 import React, { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import api from '../lib/api'
@@ -27,6 +28,10 @@ const TABS = [
   'Settings',
 ]
 
+/* ============================================================
+   ADMIN
+============================================================ */
+
 export default function Admin() {
   const { user, authLoading, logout, isAdmin } = useAuth()
   const navigate = useNavigate()
@@ -41,16 +46,12 @@ export default function Admin() {
   }, [authLoading, user, isAdmin, navigate])
 
   if (authLoading || !user || !isAdmin()) {
-    return (
-      <div className="min-h-screen grid place-items-center">
-        <Loader />
-      </div>
-    )
+    return <Loader />
   }
 
   return (
-    <div className="min-h-screen bg-cream pt-24 pb-12">
-      <div className="container-x">
+    <div className="min-h-screen bg-emerald-50/40">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
 
         {/* HEADER */}
         <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-5 mb-8">
@@ -130,41 +131,74 @@ export default function Admin() {
 ============================================================ */
 
 function Overview({ onNav }) {
-  const [impact, setImpact] = useState(null)
+  const [overview, setOverview] = useState(null)
+  const [loading, setLoading] = useState(true)
 
   useEffect(() => {
+    let mounted = true
+
     api
-      .get('/impact/')
-      .then((r) => setImpact(r.data))
-      .catch((err) => {
-        console.error('Impact API error:', err)
-        setImpact({})
+      .get('/overview/')
+      .then((response) => {
+        if (!mounted) return
+
+        console.log('Overview API:', response.data)
+        setOverview(response.data)
       })
+      .catch((error) => {
+        console.error(
+          'Overview API error:',
+          error.response?.data || error
+        )
+
+        if (!mounted) return
+
+        setOverview({
+          students: 0,
+          events: 0,
+          registrations: 0,
+          volunteers: 0,
+          trees: 0,
+          waste: 0,
+          water: 0,
+          campaigns: 0,
+          members: 0,
+        })
+      })
+      .finally(() => {
+        if (mounted) {
+          setLoading(false)
+        }
+      })
+
+    return () => {
+      mounted = false
+    }
   }, [])
 
   const cards = [
     [
       'Students',
-      impact?.members,
-      'Students',
+      overview?.students,
+      'Registered students',
       () => onNav('Students'),
     ],
     [
       'Events',
-      impact?.events,
-      'Events',
+      overview?.events,
+      'Total events',
       () => onNav('Events'),
     ],
     [
       'Registrations',
-      impact?.volunteers,
-      'Volunteers',
+      overview?.registrations,
+      'Event registrations',
       () => onNav('Registrations'),
     ],
     [
       'Trees Planted',
-      impact?.trees,
-      'Trees',
+      overview?.trees,
+      'Environmental impact',
       () => onNav('Impact'),
     ],
   ]
@@ -172,34 +206,40 @@ function Overview({ onNav }) {
   return (
     <div className="space-y-8">
 
+      {/* OVERVIEW */}
       <div>
         <h2 className="text-xl font-bold text-forest-950 mb-4">
           Overview
         </h2>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          {cards.map(([label, value, subtitle, go]) => (
-            <button
-              key={label}
-              onClick={go}
-              className="text-left bg-white rounded-2xl p-5 shadow-soft hover:-translate-y-0.5 transition"
-            >
-              <div className="text-sm text-forest-600">
-                {label}
-              </div>
+        {loading ? (
+          <Loader />
+        ) : (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            {cards.map(([label, value, subtitle, go]) => (
+              <button
+                key={label}
+                onClick={go}
+                className="text-left bg-white rounded-2xl p-5 shadow-soft hover:-translate-y-0.5 transition"
+              >
+                <div className="text-sm text-forest-600">
+                  {label}
+                </div>
 
-              <div className="text-3xl font-bold text-forest-950 mt-2">
-                {Number(value || 0).toLocaleString()}
-              </div>
+                <div className="text-3xl font-bold text-forest-950 mt-2">
+                  {Number(value || 0).toLocaleString()}
+                </div>
 
-              <div className="text-xs text-forest-500 mt-1">
-                {subtitle}
-              </div>
-            </button>
-          ))}
-        </div>
+                <div className="text-xs text-forest-500 mt-1">
+                  {subtitle}
+                </div>
+              </button>
+            ))}
+          </div>
+        )}
       </div>
 
+      {/* QUICK ACTIONS */}
       <div>
         <h2 className="text-xl font-bold text-forest-950 mb-4">
           Quick Actions
@@ -226,6 +266,7 @@ function Overview({ onNav }) {
           ))}
         </div>
       </div>
+
     </div>
   )
 }
@@ -243,11 +284,19 @@ function useList(url) {
 
     api
       .get(url)
-      .then((r) => {
-        setData(r.data?.results || r.data || [])
+      .then((response) => {
+        setData(
+          response.data?.results ||
+            response.data ||
+            []
+        )
       })
-      .catch((err) => {
-        console.error(`API error: ${url}`, err)
+      .catch((error) => {
+        console.error(
+          `API error: ${url}`,
+          error.response?.data || error
+        )
+
         setData([])
       })
       .finally(() => {
@@ -283,14 +332,14 @@ function Modal({
 
   return (
     <div
-      className="fixed inset-0 z-[100] bg-black/50 backdrop-blur-sm flex items-center justify-center p-4"
+      className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-4"
       onClick={onClose}
     >
       <div
         className="bg-white rounded-2xl w-full max-w-lg max-h-[85vh] overflow-auto p-6"
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="flex items-center justify-between mb-6">
+        <div className="flex items-center justify-between mb-5">
           <h3 className="text-xl font-bold text-forest-950">
             {title}
           </h3>
@@ -333,8 +382,11 @@ function Modal({
 ============================================================ */
 
 function Students() {
-  const { data, loading, reload } =
-    useList('/auth/memberships/')
+  const {
+    data,
+    loading,
+    reload,
+  } = useList('/auth/memberships/')
 
   const [q, setQ] = useState('')
   const toast = useToast()
@@ -350,37 +402,24 @@ function Students() {
 
   const setStatus = async (id, status) => {
     try {
-      /*
-       * IMPORTANT:
-       *
-       * Django:
-       * path(
-       *   "memberships/<int:pk>/",
-       *   MembershipAdminView.as_view()
-       * )
-       *
-       * Project URL:
-       * /api/auth/
-       *
-       * Final URL:
-       * /api/auth/memberships/<id>/
-       */
-
-      await api.patch(`/auth/memberships/${id}/`, {
-        status,
-      })
+      await api.patch(
+        `/auth/memberships/${id}/`,
+        {
+          status,
+        }
+      )
 
       toast('Updated')
       reload()
-    } catch (e) {
+    } catch (error) {
       console.error(
         'Membership update error:',
-        e.response?.data || e
+        error.response?.data || error
       )
 
       toast(
-        e.response?.data?.detail ||
-          e.response?.data?.status?.[0] ||
+        error.response?.data?.detail ||
+          error.response?.data?.status?.[0] ||
           'Unable to update membership',
         'error'
       )
@@ -388,8 +427,9 @@ function Students() {
   }
 
   return (
-    <div className="bg-white rounded-2xl p-6 shadow-soft">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
+    <div className="bg-white rounded-2xl p-5 shadow-soft">
+
+      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-6">
         <div>
           <h2 className="text-xl font-bold text-forest-950">
             Students & Memberships
@@ -466,7 +506,10 @@ function Students() {
                       {m.status !== 'approved' && (
                         <button
                           onClick={() =>
-                            setStatus(m.id, 'approved')
+                            setStatus(
+                              m.id,
+                              'approved'
+                            )
                           }
                           className="px-2 py-1 rounded bg-emerald-600 text-white text-xs"
                         >
@@ -477,7 +520,10 @@ function Students() {
                       {m.status !== 'rejected' && (
                         <button
                           onClick={() =>
-                            setStatus(m.id, 'rejected')
+                            setStatus(
+                              m.id,
+                              'rejected'
+                            )
                           }
                           className="px-2 py-1 rounded bg-rose-600 text-white text-xs"
                         >
@@ -503,8 +549,11 @@ function Students() {
 ============================================================ */
 
 function Events() {
-  const { data, loading, reload } =
-    useList('/events/?page_size=100')
+  const {
+    data,
+    loading,
+    reload,
+  } = useList('/events/?page_size=100')
 
   const toast = useToast()
   const [modal, setModal] = useState(false)
@@ -521,20 +570,30 @@ function Events() {
 
     try {
       if (form.id) {
-        await api.patch(`/events/${form.id}/`, form)
+        await api.patch(
+          `/events/${form.id}/`,
+          form
+        )
+
         toast('Event updated')
       } else {
         await api.post('/events/', form)
+
         toast('Event created')
       }
 
       setModal(false)
       reload()
-    } catch (e) {
-      console.error(e)
+    } catch (error) {
+      console.error(
+        'Event save error:',
+        error.response?.data || error
+      )
 
       toast(
-        Object.values(e.response?.data || {})[0]?.[0] ||
+        Object.values(
+          error.response?.data || {}
+        )[0]?.[0] ||
           'Unable to save event',
         'error'
       )
@@ -544,26 +603,28 @@ function Events() {
   }
 
   const del = async (id) => {
-    if (!window.confirm('Delete this event?')) return
+    if (!window.confirm('Delete this event?')) {
+      return
+    }
 
     try {
       await api.delete(`/events/${id}/`)
+
       toast('Deleted')
       reload()
-    } catch (e) {
-      console.error(e)
+    } catch (error) {
+      console.error(error)
       toast('Unable to delete event', 'error')
     }
   }
 
   return (
-    <div className="bg-white rounded-2xl p-6 shadow-soft">
+    <div className="bg-white rounded-2xl p-5 shadow-soft">
+
       <div className="flex items-center justify-between mb-6">
-        <div>
-          <h2 className="text-xl font-bold text-forest-950">
-            Events
-          </h2>
-        </div>
+        <h2 className="text-xl font-bold text-forest-950">
+          Events
+        </h2>
 
         <button
           onClick={openNew}
@@ -578,30 +639,31 @@ function Events() {
         <Loader />
       ) : data.length ? (
         <div className="space-y-3">
-          {data.map((e) => (
+          {data.map((event) => (
             <div
-              key={e.id}
+              key={event.id}
               className="border border-emerald-100 rounded-xl p-4 flex flex-col md:flex-row md:items-center justify-between gap-3"
             >
               <div>
                 <h3 className="font-semibold text-forest-950">
-                  {e.title}
+                  {event.title}
                 </h3>
 
                 <p className="text-sm text-forest-600 mt-1">
-                  {e.date} · {e.venue}
+                  {event.date} · {event.venue}
                 </p>
 
                 <p className="text-xs text-forest-500 mt-1">
-                  {e.registrations_count || 0}/
-                  {e.max_participants || 0} registered
+                  {event.registrations_count || 0}/
+                  {event.max_participants || 0}{' '}
+                  registered
                 </p>
               </div>
 
               <div className="flex gap-2">
                 <button
                   onClick={() => {
-                    setForm(e)
+                    setForm(event)
                     setModal(true)
                   }}
                   className="p-2 rounded-lg bg-emerald-50 text-emerald-700"
@@ -610,7 +672,7 @@ function Events() {
                 </button>
 
                 <button
-                  onClick={() => del(e.id)}
+                  onClick={() => del(event.id)}
                   className="p-2 rounded-lg bg-rose-50 text-rose-600"
                 >
                   <FiTrash2 />
@@ -626,23 +688,33 @@ function Events() {
       <Modal
         open={modal}
         onClose={() => setModal(false)}
-        title={form.id ? 'Edit Event' : 'Create Event'}
+        title={
+          form.id
+            ? 'Edit Event'
+            : 'Create Event'
+        }
         onSave={save}
         saving={saving}
       >
         <Field
           label="Title"
           value={form.title}
-          onChange={(v) =>
-            setForm((f) => ({ ...f, title: v }))
+          onChange={(value) =>
+            setForm((f) => ({
+              ...f,
+              title: value,
+            }))
           }
         />
 
         <Field
           label="Venue"
           value={form.venue}
-          onChange={(v) =>
-            setForm((f) => ({ ...f, venue: v }))
+          onChange={(value) =>
+            setForm((f) => ({
+              ...f,
+              venue: value,
+            }))
           }
         />
 
@@ -650,16 +722,22 @@ function Events() {
           label="Date"
           type="date"
           value={form.date}
-          onChange={(v) =>
-            setForm((f) => ({ ...f, date: v }))
+          onChange={(value) =>
+            setForm((f) => ({
+              ...f,
+              date: value,
+            }))
           }
         />
 
         <Field
           label="Category"
           value={form.category}
-          onChange={(v) =>
-            setForm((f) => ({ ...f, category: v }))
+          onChange={(value) =>
+            setForm((f) => ({
+              ...f,
+              category: value,
+            }))
           }
         />
 
@@ -667,8 +745,11 @@ function Events() {
           label="Start Time"
           type="time"
           value={form.start_time}
-          onChange={(v) =>
-            setForm((f) => ({ ...f, start_time: v }))
+          onChange={(value) =>
+            setForm((f) => ({
+              ...f,
+              start_time: value,
+            }))
           }
         />
 
@@ -676,10 +757,10 @@ function Events() {
           label="Max Participants"
           type="number"
           value={form.max_participants}
-          onChange={(v) =>
+          onChange={(value) =>
             setForm((f) => ({
               ...f,
-              max_participants: v,
+              max_participants: value,
             }))
           }
         />
@@ -711,12 +792,15 @@ function Events() {
 ============================================================ */
 
 function Registrations() {
-  const { data, loading } =
-    useList('/registrations/?page_size=100')
+  const {
+    data,
+    loading,
+  } = useList('/registrations/?page_size=100')
 
   return (
-    <div className="bg-white rounded-2xl p-6 shadow-soft">
-      <h2 className="text-xl font-bold text-forest-950 mb-6">
+    <div className="bg-white rounded-2xl p-5 shadow-soft">
+
+      <h2 className="text-xl font-bold text-forest-950 mb-5">
         Event Registrations
       </h2>
 
@@ -724,25 +808,27 @@ function Registrations() {
         <Loader />
       ) : data.length ? (
         <div className="space-y-3">
-          {data.map((r) => (
+          {data.map((registration) => (
             <div
-              key={r.id}
+              key={registration.id}
               className="border border-emerald-100 rounded-xl p-4"
             >
               <div className="font-semibold">
-                {r.full_name}
+                {registration.full_name}
               </div>
 
               <div className="text-sm text-gray-600">
-                {r.event_title || r.event?.title}
+                {registration.event_title ||
+                  registration.event?.title}
               </div>
 
               <div className="text-sm text-gray-600">
-                {r.register_number} · {r.email}
+                {registration.register_number} ·{' '}
+                {registration.email}
               </div>
 
               <span className="inline-block mt-2 px-2 py-1 rounded-full bg-emerald-100 text-emerald-700 text-xs">
-                {r.status}
+                {registration.status}
               </span>
             </div>
           ))}
@@ -759,8 +845,11 @@ function Registrations() {
 ============================================================ */
 
 function Gallery() {
-  const { data, loading, reload } =
-    useList('/gallery/?page_size=100')
+  const {
+    data,
+    loading,
+    reload,
+  } = useList('/gallery/?page_size=100')
 
   const toast = useToast()
   const [file, setFile] = useState(null)
@@ -769,48 +858,70 @@ function Gallery() {
 
   const upload = async () => {
     if (!file) {
-      toast('Select an image first', 'error')
+      toast(
+        'Select an image first',
+        'error'
+      )
       return
     }
 
     setUploading(true)
 
     try {
-      const fd = new FormData()
+      const formData = new FormData()
 
-      fd.append('image', file)
-      fd.append('title', title)
+      formData.append('image', file)
+      formData.append('title', title)
 
-      await api.post('/gallery/', fd)
+      await api.post(
+        '/gallery/',
+        formData
+      )
 
       toast('Uploaded')
+
       setFile(null)
       setTitle('')
+
       reload()
-    } catch (e) {
-      console.error(e)
-      toast('Upload failed', 'error')
+    } catch (error) {
+      console.error(
+        'Gallery upload error:',
+        error.response?.data || error
+      )
+
+      toast(
+        'Upload failed',
+        'error'
+      )
     } finally {
       setUploading(false)
     }
   }
 
   const del = async (id) => {
-    if (!window.confirm('Delete image?')) return
+    if (!window.confirm('Delete image?')) {
+      return
+    }
 
     try {
       await api.delete(`/gallery/${id}/`)
+
       toast('Deleted')
       reload()
-    } catch (e) {
-      console.error(e)
-      toast('Delete failed', 'error')
+    } catch (error) {
+      console.error(error)
+      toast(
+        'Delete failed',
+        'error'
+      )
     }
   }
 
   return (
-    <div className="bg-white rounded-2xl p-6 shadow-soft">
-      <h2 className="text-xl font-bold text-forest-950 mb-6">
+    <div className="bg-white rounded-2xl p-5 shadow-soft">
+
+      <h2 className="text-xl font-bold text-forest-950 mb-5">
         Photo Gallery
       </h2>
 
@@ -819,14 +930,18 @@ function Gallery() {
           type="file"
           accept="image/*"
           onChange={(e) =>
-            setFile(e.target.files?.[0] || null)
+            setFile(
+              e.target.files?.[0] || null
+            )
           }
           className="text-sm"
         />
 
         <input
           value={title}
-          onChange={(e) => setTitle(e.target.value)}
+          onChange={(e) =>
+            setTitle(e.target.value)
+          }
           placeholder="Caption"
           className="px-3 py-2 rounded-lg border border-emerald-200 text-sm"
         />
@@ -836,7 +951,9 @@ function Gallery() {
           disabled={uploading}
           className="px-4 py-2 rounded-lg bg-emerald-600 text-white text-sm font-semibold disabled:opacity-60"
         >
-          {uploading ? 'Uploading...' : 'Upload'}
+          {uploading
+            ? 'Uploading...'
+            : 'Upload'}
         </button>
       </div>
 
@@ -844,15 +961,18 @@ function Gallery() {
         <Loader />
       ) : data.length ? (
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          {data.map((g) => (
+          {data.map((gallery) => (
             <div
-              key={g.id}
+              key={gallery.id}
               className="group relative rounded-xl overflow-hidden bg-emerald-50"
             >
-              {g.image ? (
+              {gallery.image ? (
                 <img
-                  src={g.image}
-                  alt={g.title || 'Gallery image'}
+                  src={gallery.image}
+                  alt={
+                    gallery.title ||
+                    'Gallery image'
+                  }
                   className="w-full h-40 object-cover"
                 />
               ) : (
@@ -863,12 +983,15 @@ function Gallery() {
 
               <div className="p-2">
                 <div className="text-sm font-medium text-forest-800 truncate">
-                  {g.title || 'Untitled'}
+                  {gallery.title ||
+                    'Untitled'}
                 </div>
               </div>
 
               <button
-                onClick={() => del(g.id)}
+                onClick={() =>
+                  del(gallery.id)
+                }
                 className="absolute top-2 right-2 p-2 rounded-lg bg-rose-600 text-white"
               >
                 <FiTrash2 />
@@ -888,8 +1011,11 @@ function Gallery() {
 ============================================================ */
 
 function Team() {
-  const { data, loading, reload } =
-    useList('/team/?page_size=100')
+  const {
+    data,
+    loading,
+    reload,
+  } = useList('/team/?page_size=100')
 
   const toast = useToast()
   const [form, setForm] = useState({})
@@ -901,37 +1027,60 @@ function Team() {
 
     try {
       if (form.id) {
-        await api.patch(`/team/${form.id}/`, form)
+        await api.patch(
+          `/team/${form.id}/`,
+          form
+        )
       } else {
-        await api.post('/team/', form)
+        await api.post(
+          '/team/',
+          form
+        )
       }
 
       toast('Saved')
       setModal(false)
       reload()
-    } catch (e) {
-      console.error(e)
-      toast('Error', 'error')
+    } catch (error) {
+      console.error(
+        'Team save error:',
+        error.response?.data || error
+      )
+
+      toast(
+        'Error',
+        'error'
+      )
     } finally {
       setSaving(false)
     }
   }
 
   const del = async (id) => {
-    if (!window.confirm('Remove?')) return
+    if (!window.confirm('Remove?')) {
+      return
+    }
 
     try {
-      await api.delete(`/team/${id}/`)
+      await api.delete(
+        `/team/${id}/`
+      )
+
       toast('Removed')
       reload()
-    } catch (e) {
-      console.error(e)
-      toast('Delete failed', 'error')
+    } catch (error) {
+      console.error(error)
+
+      toast(
+        'Delete failed',
+        'error'
+      )
     }
   }
 
   return (
-    <div className="bg-white rounded-2xl p-6 shadow-soft">
+    <div className="bg-white rounded-2xl p-5 shadow-soft">
+
       <div className="flex items-center justify-between mb-6">
         <h2 className="text-xl font-bold text-forest-950">
           Team Members
@@ -953,29 +1102,33 @@ function Team() {
         <Loader />
       ) : data.length ? (
         <div className="grid md:grid-cols-2 gap-3">
-          {data.map((t) => (
+          {data.map((member) => (
             <div
-              key={t.id}
+              key={member.id}
               className="border border-emerald-100 rounded-xl p-4 flex justify-between"
             >
               <div>
                 <div className="font-semibold">
-                  {t.name}
+                  {member.name}
                 </div>
 
                 <div className="text-sm text-emerald-700 capitalize">
-                  {(t.role || '').replace('_', ' ')}
+                  {(member.role || '')
+                    .replace(
+                      '_',
+                      ' '
+                    )}
                 </div>
 
                 <div className="text-sm text-gray-600">
-                  {t.department}
+                  {member.department}
                 </div>
               </div>
 
               <div className="flex gap-2">
                 <button
                   onClick={() => {
-                    setForm(t)
+                    setForm(member)
                     setModal(true)
                   }}
                   className="p-2 rounded bg-emerald-50 text-emerald-700"
@@ -984,7 +1137,9 @@ function Team() {
                 </button>
 
                 <button
-                  onClick={() => del(t.id)}
+                  onClick={() =>
+                    del(member.id)
+                  }
                   className="p-2 rounded bg-rose-50 text-rose-600"
                 >
                   <FiTrash2 />
@@ -999,16 +1154,25 @@ function Team() {
 
       <Modal
         open={modal}
-        onClose={() => setModal(false)}
-        title={form.id ? 'Edit Member' : 'Add Member'}
+        onClose={() =>
+          setModal(false)
+        }
+        title={
+          form.id
+            ? 'Edit Member'
+            : 'Add Member'
+        }
         onSave={save}
         saving={saving}
       >
         <Field
           label="Name"
           value={form.name}
-          onChange={(v) =>
-            setForm((f) => ({ ...f, name: v }))
+          onChange={(value) =>
+            setForm((f) => ({
+              ...f,
+              name: value,
+            }))
           }
         />
 
@@ -1021,40 +1185,55 @@ function Team() {
             'executive',
           ]}
           value={form.role}
-          onChange={(v) =>
-            setForm((f) => ({ ...f, role: v }))
+          onChange={(value) =>
+            setForm((f) => ({
+              ...f,
+              role: value,
+            }))
           }
         />
 
         <Field
           label="Position / Designation"
           value={form.position}
-          onChange={(v) =>
-            setForm((f) => ({ ...f, position: v }))
+          onChange={(value) =>
+            setForm((f) => ({
+              ...f,
+              position: value,
+            }))
           }
         />
 
         <Field
           label="Department"
           value={form.department}
-          onChange={(v) =>
-            setForm((f) => ({ ...f, department: v }))
+          onChange={(value) =>
+            setForm((f) => ({
+              ...f,
+              department: value,
+            }))
           }
         />
 
         <Field
           label="Year"
           value={form.year}
-          onChange={(v) =>
-            setForm((f) => ({ ...f, year: v }))
+          onChange={(value) =>
+            setForm((f) => ({
+              ...f,
+              year: value,
+            }))
           }
         />
 
         <Field
           label="Email"
           value={form.email}
-          onChange={(v) =>
-            setForm((f) => ({ ...f, email: v }))
+          onChange={(value) =>
+            setForm((f) => ({
+              ...f,
+              email: value,
+            }))
           }
         />
       </Modal>
@@ -1063,12 +1242,15 @@ function Team() {
 }
 
 /* ============================================================
-   SDGS
+   SDGs
 ============================================================ */
 
 function SDGs() {
-  const { data, loading, reload } =
-    useList('/sdgs/?page_size=20')
+  const {
+    data,
+    loading,
+    reload,
+  } = useList('/sdgs/?page_size=20')
 
   const toast = useToast()
   const [form, setForm] = useState({})
@@ -1080,24 +1262,38 @@ function SDGs() {
 
     try {
       if (form.id) {
-        await api.patch(`/sdgs/${form.id}/`, form)
+        await api.patch(
+          `/sdgs/${form.id}/`,
+          form
+        )
       } else {
-        await api.post('/sdgs/', form)
+        await api.post(
+          '/sdgs/',
+          form
+        )
       }
 
       toast('Saved')
       setModal(false)
       reload()
-    } catch (e) {
-      console.error(e)
-      toast('Error', 'error')
+    } catch (error) {
+      console.error(
+        'SDG save error:',
+        error.response?.data || error
+      )
+
+      toast(
+        'Error',
+        'error'
+      )
     } finally {
       setSaving(false)
     }
   }
 
   return (
-    <div className="bg-white rounded-2xl p-6 shadow-soft">
+    <div className="bg-white rounded-2xl p-5 shadow-soft">
+
       <div className="flex items-center justify-between mb-6">
         <h2 className="text-xl font-bold text-forest-950">
           Sustainable Development Goals
@@ -1126,7 +1322,9 @@ function SDGs() {
               <span
                 className="w-10 h-10 rounded-lg grid place-items-center text-white font-bold text-sm"
                 style={{
-                  background: sdg.color || '#10b981',
+                  background:
+                    sdg.color ||
+                    '#10b981',
                 }}
               >
                 {sdg.number}
@@ -1138,7 +1336,9 @@ function SDGs() {
                 </div>
 
                 <div className="text-sm text-gray-500">
-                  {sdg.activities?.length || 0} activities
+                  {sdg.activities?.length ||
+                    0}{' '}
+                  activities
                 </div>
               </div>
             </div>
@@ -1150,7 +1350,9 @@ function SDGs() {
 
       <Modal
         open={modal}
-        onClose={() => setModal(false)}
+        onClose={() =>
+          setModal(false)
+        }
         title="Add SDG"
         onSave={save}
         saving={saving}
@@ -1159,32 +1361,44 @@ function SDGs() {
           label="Number"
           type="number"
           value={form.number}
-          onChange={(v) =>
-            setForm((f) => ({ ...f, number: v }))
+          onChange={(value) =>
+            setForm((f) => ({
+              ...f,
+              number: value,
+            }))
           }
         />
 
         <Field
           label="Name"
           value={form.name}
-          onChange={(v) =>
-            setForm((f) => ({ ...f, name: v }))
+          onChange={(value) =>
+            setForm((f) => ({
+              ...f,
+              name: value,
+            }))
           }
         />
 
         <Field
           label="Color"
           value={form.color}
-          onChange={(v) =>
-            setForm((f) => ({ ...f, color: v }))
+          onChange={(value) =>
+            setForm((f) => ({
+              ...f,
+              color: value,
+            }))
           }
         />
 
         <Field
           label="Icon"
           value={form.icon}
-          onChange={(v) =>
-            setForm((f) => ({ ...f, icon: v }))
+          onChange={(value) =>
+            setForm((f) => ({
+              ...f,
+              icon: value,
+            }))
           }
         />
 
@@ -1194,11 +1408,15 @@ function SDGs() {
           </label>
 
           <textarea
-            value={form.contribution || ''}
+            value={
+              form.contribution ||
+              ''
+            }
             onChange={(e) =>
               setForm((f) => ({
                 ...f,
-                contribution: e.target.value,
+                contribution:
+                  e.target.value,
               }))
             }
             rows={2}
@@ -1215,8 +1433,13 @@ function SDGs() {
 ============================================================ */
 
 function Announcements() {
-  const { data, loading, reload } =
-    useList('/announcements/?page_size=50')
+  const {
+    data,
+    loading,
+    reload,
+  } = useList(
+    '/announcements/?page_size=50'
+  )
 
   const toast = useToast()
   const [form, setForm] = useState({})
@@ -1233,35 +1456,55 @@ function Announcements() {
           form
         )
       } else {
-        await api.post('/announcements/', form)
+        await api.post(
+          '/announcements/',
+          form
+        )
       }
 
       toast('Posted')
       setModal(false)
       reload()
-    } catch (e) {
-      console.error(e)
-      toast('Unable to save announcement', 'error')
+    } catch (error) {
+      console.error(
+        'Announcement save error:',
+        error.response?.data || error
+      )
+
+      toast(
+        'Unable to save announcement',
+        'error'
+      )
     } finally {
       setSaving(false)
     }
   }
 
   const del = async (id) => {
-    if (!window.confirm('Delete?')) return
+    if (!window.confirm('Delete?')) {
+      return
+    }
 
     try {
-      await api.delete(`/announcements/${id}/`)
+      await api.delete(
+        `/announcements/${id}/`
+      )
+
       toast('Deleted')
       reload()
-    } catch (e) {
-      console.error(e)
-      toast('Delete failed', 'error')
+    } catch (error) {
+      console.error(error)
+
+      toast(
+        'Delete failed',
+        'error'
+      )
     }
   }
 
   return (
-    <div className="bg-white rounded-2xl p-6 shadow-soft">
+    <div className="bg-white rounded-2xl p-5 shadow-soft">
+
       <div className="flex items-center justify-between mb-6">
         <h2 className="text-xl font-bold text-forest-950">
           Announcements
@@ -1282,24 +1525,28 @@ function Announcements() {
         <Loader />
       ) : data.length ? (
         <div className="space-y-3">
-          {data.map((a) => (
+          {data.map((announcement) => (
             <div
-              key={a.id}
+              key={announcement.id}
               className="border border-emerald-100 rounded-xl p-4 flex justify-between"
             >
               <div>
                 <div className="font-semibold">
-                  {a.title}
+                  {announcement.title}
                 </div>
 
                 <div className="text-sm text-gray-500">
-                  {a.category}
-                  {a.is_pinned ? ' · pinned' : ''}
+                  {announcement.category}
+                  {announcement.is_pinned
+                    ? ' · pinned'
+                    : ''}
                 </div>
               </div>
 
               <button
-                onClick={() => del(a.id)}
+                onClick={() =>
+                  del(announcement.id)
+                }
                 className="p-2 rounded bg-rose-50 text-rose-600"
               >
                 <FiTrash2 />
@@ -1313,7 +1560,9 @@ function Announcements() {
 
       <Modal
         open={modal}
-        onClose={() => setModal(false)}
+        onClose={() =>
+          setModal(false)
+        }
         title={
           form.id
             ? 'Edit Announcement'
@@ -1325,8 +1574,11 @@ function Announcements() {
         <Field
           label="Title"
           value={form.title}
-          onChange={(v) =>
-            setForm((f) => ({ ...f, title: v }))
+          onChange={(value) =>
+            setForm((f) => ({
+              ...f,
+              title: value,
+            }))
           }
         />
 
@@ -1336,7 +1588,9 @@ function Announcements() {
           </label>
 
           <textarea
-            value={form.body || ''}
+            value={
+              form.body || ''
+            }
             onChange={(e) =>
               setForm((f) => ({
                 ...f,
@@ -1357,8 +1611,13 @@ function Announcements() {
 ============================================================ */
 
 function Blog() {
-  const { data, loading, reload } =
-    useList('/blog/?page_size=50')
+  const {
+    data,
+    loading,
+    reload,
+  } = useList(
+    '/blog/?page_size=50'
+  )
 
   const toast = useToast()
   const [form, setForm] = useState({})
@@ -1370,37 +1629,60 @@ function Blog() {
 
     try {
       if (form.id) {
-        await api.patch(`/blog/${form.id}/`, form)
+        await api.patch(
+          `/blog/${form.id}/`,
+          form
+        )
       } else {
-        await api.post('/blog/', form)
+        await api.post(
+          '/blog/',
+          form
+        )
       }
 
       toast('Published')
       setModal(false)
       reload()
-    } catch (e) {
-      console.error(e)
-      toast('Unable to save post', 'error')
+    } catch (error) {
+      console.error(
+        'Blog save error:',
+        error.response?.data || error
+      )
+
+      toast(
+        'Unable to save post',
+        'error'
+      )
     } finally {
       setSaving(false)
     }
   }
 
   const del = async (id) => {
-    if (!window.confirm('Delete post?')) return
+    if (!window.confirm('Delete post?')) {
+      return
+    }
 
     try {
-      await api.delete(`/blog/${id}/`)
+      await api.delete(
+        `/blog/${id}/`
+      )
+
       toast('Deleted')
       reload()
-    } catch (e) {
-      console.error(e)
-      toast('Delete failed', 'error')
+    } catch (error) {
+      console.error(error)
+
+      toast(
+        'Delete failed',
+        'error'
+      )
     }
   }
 
   return (
-    <div className="bg-white rounded-2xl p-6 shadow-soft">
+    <div className="bg-white rounded-2xl p-5 shadow-soft">
+
       <div className="flex items-center justify-between mb-6">
         <h2 className="text-xl font-bold text-forest-950">
           Blog Posts
@@ -1421,24 +1703,29 @@ function Blog() {
         <Loader />
       ) : data.length ? (
         <div className="space-y-3">
-          {data.map((p) => (
+          {data.map((post) => (
             <div
-              key={p.id}
+              key={post.id}
               className="border border-emerald-100 rounded-xl p-4 flex justify-between"
             >
               <div>
                 <div className="font-semibold">
-                  {p.title}
+                  {post.title}
                 </div>
 
                 <div className="text-sm text-gray-500">
-                  {p.category} ·{' '}
-                  {p.created_at?.slice(0, 10)}
+                  {post.category} ·{' '}
+                  {post.created_at?.slice(
+                    0,
+                    10
+                  )}
                 </div>
               </div>
 
               <button
-                onClick={() => del(p.id)}
+                onClick={() =>
+                  del(post.id)
+                }
                 className="p-2 rounded bg-rose-50 text-rose-600"
               >
                 <FiTrash2 />
@@ -1452,32 +1739,47 @@ function Blog() {
 
       <Modal
         open={modal}
-        onClose={() => setModal(false)}
-        title={form.id ? 'Edit Blog Post' : 'New Blog Post'}
+        onClose={() =>
+          setModal(false)
+        }
+        title={
+          form.id
+            ? 'Edit Blog Post'
+            : 'New Blog Post'
+        }
         onSave={save}
         saving={saving}
       >
         <Field
           label="Title"
           value={form.title}
-          onChange={(v) =>
-            setForm((f) => ({ ...f, title: v }))
+          onChange={(value) =>
+            setForm((f) => ({
+              ...f,
+              title: value,
+            }))
           }
         />
 
         <Field
           label="Category"
           value={form.category}
-          onChange={(v) =>
-            setForm((f) => ({ ...f, category: v }))
+          onChange={(value) =>
+            setForm((f) => ({
+              ...f,
+              category: value,
+            }))
           }
         />
 
         <Field
           label="Author"
           value={form.author}
-          onChange={(v) =>
-            setForm((f) => ({ ...f, author: v }))
+          onChange={(value) =>
+            setForm((f) => ({
+              ...f,
+              author: value,
+            }))
           }
         />
 
@@ -1487,11 +1789,14 @@ function Blog() {
           </label>
 
           <textarea
-            value={form.content || ''}
+            value={
+              form.content || ''
+            }
             onChange={(e) =>
               setForm((f) => ({
                 ...f,
-                content: e.target.value,
+                content:
+                  e.target.value,
               }))
             }
             rows={5}
@@ -1508,22 +1813,35 @@ function Blog() {
 ============================================================ */
 
 function Certificates() {
-  const { data, loading, reload } =
-    useList('/participants/?page_size=100')
+  const {
+    data,
+    loading,
+    reload,
+  } = useList(
+    '/participants/?page_size=100'
+  )
 
   const toast = useToast()
 
   const certify = async (id) => {
     try {
-      await api.post(`/participants/${id}/certify/`)
-
-      toast('Certificate generated!')
-      reload()
-    } catch (e) {
-      console.error(e)
+      await api.post(
+        `/participants/${id}/certify/`
+      )
 
       toast(
-        e.response?.data?.detail ||
+        'Certificate generated!'
+      )
+
+      reload()
+    } catch (error) {
+      console.error(
+        'Certificate error:',
+        error.response?.data || error
+      )
+
+      toast(
+        error.response?.data?.detail ||
           'Unable to generate certificate',
         'error'
       )
@@ -1531,42 +1849,48 @@ function Certificates() {
   }
 
   return (
-    <div className="bg-white rounded-2xl p-6 shadow-soft">
+    <div className="bg-white rounded-2xl p-5 shadow-soft">
+
       <h2 className="text-xl font-bold text-forest-950">
         Event Participants → Certificates
       </h2>
 
       <p className="text-sm text-gray-600 mt-1 mb-5">
-        Mark participants as attended and generate their
-        certificates.
+        Mark participants as attended and
+        generate their certificates.
       </p>
 
       {loading ? (
         <Loader />
       ) : data.length ? (
         <div className="space-y-3">
-          {data.map((p) => (
+          {data.map((participant) => (
             <div
-              key={p.id}
+              key={participant.id}
               className="border border-emerald-100 rounded-xl p-4 flex items-center justify-between gap-4"
             >
               <div>
                 <div className="font-semibold">
-                  {p.full_name}
+                  {participant.full_name}
                 </div>
 
                 <div className="text-sm text-gray-500">
-                  {p.event_title} · {p.register_number}
+                  {participant.event_title} ·{' '}
+                  {participant.register_number}
                 </div>
               </div>
 
-              {p.has_certificate ? (
+              {participant.has_certificate ? (
                 <span className="text-emerald-600 text-sm font-semibold">
                   ✓ Certified
                 </span>
               ) : (
                 <button
-                  onClick={() => certify(p.id)}
+                  onClick={() =>
+                    certify(
+                      participant.id
+                    )
+                  }
                   className="px-3 py-1.5 rounded-lg bg-emerald-600 text-white text-sm font-semibold"
                 >
                   Generate Certificate
@@ -1587,12 +1911,17 @@ function Certificates() {
 ============================================================ */
 
 function Messages() {
-  const { data, loading } =
-    useList('/contact/admin/?page_size=50')
+  const {
+    data,
+    loading,
+  } = useList(
+    '/contact/admin/?page_size=50'
+  )
 
   return (
-    <div className="bg-white rounded-2xl p-6 shadow-soft">
-      <h2 className="text-xl font-bold text-forest-950 mb-6">
+    <div className="bg-white rounded-2xl p-5 shadow-soft">
+
+      <h2 className="text-xl font-bold text-forest-950 mb-5">
         Contact Messages
       </h2>
 
@@ -1600,30 +1929,33 @@ function Messages() {
         <Loader />
       ) : data.length ? (
         <div className="space-y-3">
-          {data.map((m) => (
+          {data.map((message) => (
             <div
-              key={m.id}
+              key={message.id}
               className="border border-emerald-100 rounded-xl p-4"
             >
               <div className="flex flex-wrap justify-between gap-2">
                 <div className="font-semibold">
-                  {m.name}{' '}
+                  {message.name}{' '}
                   <span className="text-gray-500 font-normal">
-                    ({m.email})
+                    ({message.email})
                   </span>
                 </div>
 
                 <div className="text-xs text-gray-500">
-                  {m.created_at?.slice(0, 10)}
+                  {message.created_at?.slice(
+                    0,
+                    10
+                  )}
                 </div>
               </div>
 
               <div className="font-medium mt-2">
-                {m.subject}
+                {message.subject}
               </div>
 
               <p className="text-sm text-gray-600 mt-1 whitespace-pre-wrap">
-                {m.message}
+                {message.message}
               </p>
             </div>
           ))}
@@ -1640,30 +1972,54 @@ function Messages() {
 ============================================================ */
 
 function Impact() {
-  const { data, loading, reload } =
-    useList('/impact/admin/?page_size=20')
+  const {
+    data,
+    loading,
+    reload,
+  } = useList(
+    '/impact/admin/?page_size=20'
+  )
 
   const toast = useToast()
   const [form, setForm] = useState({})
 
-  const update = async (id, metric, fallback) => {
+  const update = async (
+    id,
+    metric,
+    fallback
+  ) => {
     try {
-      await api.patch(`/impact/admin/${id}/`, {
-        value:
-          parseInt(form[metric] ?? fallback, 10) || 0,
-      })
+      await api.patch(
+        `/impact/admin/${id}/`,
+        {
+          value:
+            parseInt(
+              form[metric] ??
+                fallback,
+              10
+            ) || 0,
+        }
+      )
 
       toast('Updated')
       reload()
-    } catch (e) {
-      console.error(e)
-      toast('Unable to update impact', 'error')
+    } catch (error) {
+      console.error(
+        'Impact update error:',
+        error.response?.data || error
+      )
+
+      toast(
+        'Unable to update impact',
+        'error'
+      )
     }
   }
 
   return (
-    <div className="bg-white rounded-2xl p-6 shadow-soft">
-      <h2 className="text-xl font-bold text-forest-950 mb-6">
+    <div className="bg-white rounded-2xl p-5 shadow-soft">
+
+      <h2 className="text-xl font-bold text-forest-950 mb-5">
         Impact Statistics
       </h2>
 
@@ -1678,7 +2034,10 @@ function Impact() {
             >
               <div>
                 <div className="font-semibold capitalize">
-                  {(item.label || item.metric || '').replace(
+                  {(item.label ||
+                    item.metric ||
+                    ''
+                  ).replace(
                     /_/g,
                     ' '
                   )}
@@ -1692,11 +2051,14 @@ function Impact() {
               <div className="flex items-center gap-2">
                 <input
                   type="number"
-                  defaultValue={item.value}
+                  defaultValue={
+                    item.value
+                  }
                   onChange={(e) =>
                     setForm((f) => ({
                       ...f,
-                      [item.metric]: e.target.value,
+                      [item.metric]:
+                        e.target.value,
                     }))
                   }
                   className="w-24 px-2 py-1.5 rounded-lg border border-emerald-200 text-sm"
@@ -1730,32 +2092,54 @@ function Impact() {
 ============================================================ */
 
 function Settings() {
-  const { data, loading, reload } =
-    useList('/settings/admin/?page_size=100')
+  const {
+    data,
+    loading,
+    reload,
+  } = useList(
+    '/settings/admin/?page_size=100'
+  )
 
   const toast = useToast()
   const [edits, setEdits] = useState({})
 
   const saveAll = async () => {
     try {
-      for (const [id, value] of Object.entries(edits)) {
-        await api.patch(`/settings/admin/${id}/`, {
-          value,
-        })
+      for (
+        const [id, value]
+        of Object.entries(edits)
+      ) {
+        await api.patch(
+          `/settings/admin/${id}/`,
+          {
+            value,
+          }
+        )
       }
 
-      toast('Settings saved')
+      toast(
+        'Settings saved'
+      )
+
       setEdits({})
       reload()
-    } catch (e) {
-      console.error(e)
-      toast('Unable to save settings', 'error')
+    } catch (error) {
+      console.error(
+        'Settings error:',
+        error.response?.data || error
+      )
+
+      toast(
+        'Unable to save settings',
+        'error'
+      )
     }
   }
 
   return (
-    <div className="bg-white rounded-2xl p-6 shadow-soft">
-      <h2 className="text-xl font-bold text-forest-950 mb-6">
+    <div className="bg-white rounded-2xl p-5 shadow-soft">
+
+      <h2 className="text-xl font-bold text-forest-950 mb-5">
         Website Settings
       </h2>
 
@@ -1767,15 +2151,19 @@ function Settings() {
             {data.map((setting) => (
               <div key={setting.id}>
                 <label className="block text-sm font-medium text-forest-800">
-                  {setting.label || setting.key}
+                  {setting.label ||
+                    setting.key}
                 </label>
 
                 <input
-                  defaultValue={setting.value || ''}
+                  defaultValue={
+                    setting.value || ''
+                  }
                   onChange={(e) =>
                     setEdits((f) => ({
                       ...f,
-                      [setting.id]: e.target.value,
+                      [setting.id]:
+                        e.target.value,
                     }))
                   }
                   className="w-full mt-1 px-3 py-2 rounded-lg border border-emerald-200 text-sm"
@@ -1792,8 +2180,9 @@ function Settings() {
           </button>
 
           <p className="text-sm text-gray-500 mt-4">
-            Tip: Upload the college logo by uploading an
-            image below — it will be used across the site.
+            Tip: Upload the college logo by
+            uploading an image below — it will
+            be used across the site.
           </p>
         </>
       )}
@@ -1821,7 +2210,11 @@ function Field({
 
         <select
           value={value || ''}
-          onChange={(e) => onChange(e.target.value)}
+          onChange={(e) =>
+            onChange(
+              e.target.value
+            )
+          }
           className="w-full px-3 py-2 rounded-lg border border-emerald-200 text-sm outline-none"
         >
           <option value="">
@@ -1829,8 +2222,14 @@ function Field({
           </option>
 
           {options.map((option) => (
-            <option key={option} value={option}>
-              {option.replace('_', ' ')}
+            <option
+              key={option}
+              value={option}
+            >
+              {option.replace(
+                '_',
+                ' '
+              )}
             </option>
           ))}
         </select>
@@ -1847,9 +2246,14 @@ function Field({
       <input
         type={type}
         value={value ?? ''}
-        onChange={(e) => onChange(e.target.value)}
+        onChange={(e) =>
+          onChange(
+            e.target.value
+          )
+        }
         className="w-full px-3 py-2 rounded-lg border border-emerald-200 text-sm outline-none"
       />
     </div>
   )
 }
+
