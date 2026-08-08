@@ -1,13 +1,14 @@
-
 from django.contrib.auth import get_user_model
 from django.db import transaction
-
+from .permissions import IsClubAdmin
 from rest_framework import permissions, status
 from rest_framework.views import APIView
 from rest_framework.response import Response
+
 from rest_framework_simplejwt.tokens import RefreshToken
 
 from .models import Membership, StudentProfile
+
 from .serializers import (
     EcoPointSerializer,
     MembershipSerializer,
@@ -17,37 +18,10 @@ from .serializers import (
     UserSerializer,
 )
 
+from .permissions import IsClubAdmin
+
+
 User = get_user_model()
-
-
-# ============================================================
-# CUSTOM ADMIN PERMISSION
-# ============================================================
-
-class IsClubAdmin(permissions.BasePermission):
-    """
-    Allows authenticated Django staff users or users recognized
-    by the project's custom is_staff_member() method.
-    """
-
-    def has_permission(self, request, view):
-        user = request.user
-
-        if not user or not user.is_authenticated:
-            return False
-
-        # Normal Django admin/staff user
-        if user.is_staff:
-            return True
-
-        # Project-specific staff/admin check
-        if hasattr(user, "is_staff_member"):
-            try:
-                return bool(user.is_staff_member())
-            except Exception:
-                return False
-
-        return False
 
 
 # ============================================================
@@ -60,17 +34,27 @@ class RegisterView(APIView):
     @transaction.atomic
     def post(self, request):
         serializer = RegisterSerializer(data=request.data)
+
         serializer.is_valid(raise_exception=True)
 
         data = serializer.validated_data
 
+        # ----------------------------------------------------
+        # Generate unique username
+        # ----------------------------------------------------
+
         base = data["email"].split("@")[0]
+
         username = base
         n = 1
 
         while User.objects.filter(username=username).exists():
             username = f"{base}{n}"
             n += 1
+
+        # ----------------------------------------------------
+        # Create user
+        # ----------------------------------------------------
 
         user = User.objects.create_user(
             username=username,
@@ -82,13 +66,32 @@ class RegisterView(APIView):
             role="student",
         )
 
+        # ----------------------------------------------------
+        # Create student profile
+        # ----------------------------------------------------
+
         profile = StudentProfile.objects.create(
             user=user,
-            register_number=data.get("register_number", ""),
-            department=data.get("department", ""),
-            year=data.get("year", ""),
-            gender=data.get("gender", ""),
-            college=data.get("college", ""),
+            register_number=data.get(
+                "register_number",
+                "",
+            ),
+            department=data.get(
+                "department",
+                "",
+            ),
+            year=data.get(
+                "year",
+                "",
+            ),
+            gender=data.get(
+                "gender",
+                "",
+            ),
+            college=data.get(
+                "college",
+                "",
+            ),
             areas_of_interest=data.get(
                 "areas_of_interest",
                 "",
@@ -98,6 +101,10 @@ class RegisterView(APIView):
                 "",
             ),
         )
+
+        # ----------------------------------------------------
+        # Create membership
+        # ----------------------------------------------------
 
         membership = Membership.objects.create(
             profile=profile,
@@ -148,13 +155,17 @@ class MeView(APIView):
                 "user": UserSerializer(user).data,
 
                 "profile": (
-                    StudentProfileSerializer(profile).data
+                    StudentProfileSerializer(
+                        profile
+                    ).data
                     if profile
                     else None
                 ),
 
                 "membership": (
-                    MembershipSerializer(membership).data
+                    MembershipSerializer(
+                        membership
+                    ).data
                     if membership
                     else None
                 ),
@@ -213,22 +224,53 @@ class UpdateProfileView(APIView):
 # ============================================================
 
 class MembershipListView(APIView):
-    permission_classes = [permissions.AllowAny]
+    """
+    GET /api/auth/memberships/
+
+    Admin/staff:
+        Returns all memberships.
+
+    Normal users:
+        Returns only approved memberships.
+    """
+
+    permission_classes = [
+        permissions.AllowAny
+    ]
 
     def get(self, request):
         user = request.user
 
-        is_admin = (
+        is_admin = False
+
+        # ----------------------------------------------------
+        # Check admin
+        # ----------------------------------------------------
+
+        if (
             user
             and user.is_authenticated
-            and (
-                user.is_staff
-                or (
-                    hasattr(user, "is_staff_member")
-                    and user.is_staff_member()
-                )
-            )
-        )
+        ):
+            if user.is_superuser:
+                is_admin = True
+
+            elif user.is_staff:
+                is_admin = True
+
+            elif hasattr(
+                user,
+                "is_staff_member",
+            ):
+                try:
+                    is_admin = bool(
+                        user.is_staff_member()
+                    )
+                except Exception:
+                    is_admin = False
+
+        # ----------------------------------------------------
+        # Query memberships
+        # ----------------------------------------------------
 
         if is_admin:
             qs = Membership.objects.all()
@@ -242,7 +284,13 @@ class MembershipListView(APIView):
             "profile__user",
         )
 
-        query = request.query_params.get("q")
+        # ----------------------------------------------------
+        # Search
+        # ----------------------------------------------------
+
+        query = request.query_params.get(
+            "q"
+        )
 
         if query:
             qs = qs.filter(
@@ -328,7 +376,8 @@ class NotificationsView(APIView):
         return Response(
             {
                 "detail": (
-                    "All notifications marked as read."
+                    "All notifications "
+                    "marked as read."
                 )
             }
         )
@@ -352,6 +401,10 @@ class ChangePasswordView(APIView):
             "new_password"
         )
 
+        # ----------------------------------------------------
+        # Check old password
+        # ----------------------------------------------------
+
         if not request.user.check_password(
             old_password or ""
         ):
@@ -364,6 +417,10 @@ class ChangePasswordView(APIView):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
+        # ----------------------------------------------------
+        # Check new password
+        # ----------------------------------------------------
+
         if len(new_password or "") < 6:
             return Response(
                 {
@@ -372,11 +429,19 @@ class ChangePasswordView(APIView):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
+        # ----------------------------------------------------
+        # Save
+        # ----------------------------------------------------
+
         request.user.set_password(
             new_password
         )
 
-        request.user.save()
+        request.user.save(
+            update_fields=[
+                "password"
+            ]
+        )
 
         return Response(
             {
@@ -388,21 +453,25 @@ class ChangePasswordView(APIView):
 
 
 # ============================================================
-# ADMIN MEMBERSHIP MANAGEMENT
+# ADMIN MEMBERSHIP UPDATE
 # ============================================================
 
 class MembershipAdminView(APIView):
     """
-    Admin endpoint for approving/rejecting memberships.
+    Admin-only membership approval/rejection.
 
-    URL:
+    PATCH:
         /api/auth/memberships/<id>/
 
-    The important fix here is using IsClubAdmin instead of
-    DRF's IsAdminUser.
+    Body:
+        {
+            "status": "approved"
+        }
     """
 
-    permission_classes = [IsClubAdmin]
+    permission_classes = [
+        IsClubAdmin
+    ]
 
     def patch(self, request, pk):
         new_status = request.data.get(
@@ -448,7 +517,7 @@ class MembershipAdminView(APIView):
             )
 
         # ----------------------------------------------------
-        # Update membership status
+        # Update membership
         # ----------------------------------------------------
 
         membership.status = new_status
@@ -460,37 +529,41 @@ class MembershipAdminView(APIView):
         )
 
         # ----------------------------------------------------
-        # Update user's approval status
+        # Update user approval
         # ----------------------------------------------------
 
-        user = membership.profile.user
+        if (
+            membership.profile
+            and membership.profile.user
+        ):
+            user = membership.profile.user
 
-        if new_status == "approved":
-            user.is_approved = True
+            if new_status == "approved":
+                user.is_approved = True
 
-            user.save(
-                update_fields=[
-                    "is_approved"
-                ]
-            )
+                user.save(
+                    update_fields=[
+                        "is_approved"
+                    ]
+                )
 
-        elif new_status == "rejected":
-            user.is_approved = False
+            elif new_status == "rejected":
+                user.is_approved = False
 
-            user.save(
-                update_fields=[
-                    "is_approved"
-                ]
-            )
+                user.save(
+                    update_fields=[
+                        "is_approved"
+                    ]
+                )
 
-        elif new_status == "pending":
-            user.is_approved = False
+            elif new_status == "pending":
+                user.is_approved = False
 
-            user.save(
-                update_fields=[
-                    "is_approved"
-                ]
-            )
+                user.save(
+                    update_fields=[
+                        "is_approved"
+                    ]
+                )
 
         # ----------------------------------------------------
         # Return updated membership
@@ -530,6 +603,6 @@ class LogoutView(APIView):
         return Response(
             {
                 "detail": "Logged out."
-            }
+            },
+            status=status.HTTP_200_OK,
         )
-
