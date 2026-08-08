@@ -4,6 +4,9 @@ from django.utils.text import slugify
 from rest_framework import permissions, viewsets, views, status
 from rest_framework.response import Response
 
+from apps.accounts.models import User, Membership
+from apps.accounts.permissions import IsClubAdmin
+
 from .models import (
     Announcement,
     BlogPost,
@@ -32,8 +35,6 @@ from .serializers import (
     WebsiteSettingSerializer,
 )
 
-from apps.accounts.permissions import IsClubAdmin
-
 
 # ============================================================
 # ADMIN OR READ ONLY
@@ -41,22 +42,20 @@ from apps.accounts.permissions import IsClubAdmin
 
 class IsAdminOrReadOnly(permissions.BasePermission):
     """
-    Public users can GET/HEAD/OPTIONS.
+    Public users can read data.
 
-    Only Eco Club admins can:
-    - POST
-    - PUT
-    - PATCH
-    - DELETE
+    Eco Club admins/staff can create, update and delete data.
     """
 
     message = "You do not have permission to perform this action."
 
     def has_permission(self, request, view):
 
+        # GET / HEAD / OPTIONS
         if request.method in permissions.SAFE_METHODS:
             return True
 
+        # POST / PUT / PATCH / DELETE
         return IsClubAdmin().has_permission(
             request,
             view,
@@ -298,6 +297,11 @@ class BlogViewSet(viewsets.ModelViewSet):
 # ============================================================
 
 class ContactCreateView(views.APIView):
+    """
+    Public contact form.
+
+    POST /api/contact/
+    """
 
     permission_classes = [
         permissions.AllowAny
@@ -313,14 +317,15 @@ class ContactCreateView(views.APIView):
             raise_exception=True
         )
 
-        serializer.save()
+        message = serializer.save()
 
         return Response(
             {
                 "detail": (
                     "Message posted. "
                     "We will get back to you soon."
-                )
+                ),
+                "id": message.pk,
             },
             status=status.HTTP_201_CREATED,
         )
@@ -333,13 +338,21 @@ class ContactCreateView(views.APIView):
 class ContactAdminViewSet(
     viewsets.ReadOnlyModelViewSet
 ):
+    """
+    Admin contact messages.
 
-    queryset = ContactMessage.objects.all()
+    GET:
+        /api/contact/admin/
+
+    Only Eco Club admins/staff can access.
+    """
+
+    queryset = ContactMessage.objects.all().order_by(
+        "-created_at"
+    )
 
     serializer_class = ContactMessageSerializer
 
-    # IMPORTANT:
-    # Do NOT use permissions.IsAdminUser here.
     permission_classes = [
         IsClubAdmin
     ]
@@ -348,18 +361,58 @@ class ContactAdminViewSet(
         "is_read",
     ]
 
+    search_fields = [
+        "name",
+        "email",
+        "subject",
+        "message",
+    ]
+
 
 # ============================================================
-# IMPACT
+# IMPACT / OVERVIEW
 # ============================================================
 
 class ImpactView(views.APIView):
+    """
+    Public Overview statistics.
+
+    IMPORTANT:
+
+    Students are calculated directly from the User table.
+
+    Approved members are calculated directly from the
+    Membership table.
+
+    Events/trees/waste/etc. can still come from
+    ImpactStatistic records.
+    """
 
     permission_classes = [
         permissions.AllowAny
     ]
 
     def get(self, request):
+
+        # ----------------------------------------------------
+        # REAL STUDENT COUNT
+        # ----------------------------------------------------
+
+        students_count = User.objects.filter(
+            role="student"
+        ).count()
+
+        # ----------------------------------------------------
+        # REAL APPROVED MEMBERS COUNT
+        # ----------------------------------------------------
+
+        members_count = Membership.objects.filter(
+            status="approved"
+        ).count()
+
+        # ----------------------------------------------------
+        # IMPACT STATISTICS
+        # ----------------------------------------------------
 
         stats = dict(
             ImpactStatistic.objects.values_list(
@@ -368,20 +421,38 @@ class ImpactView(views.APIView):
             )
         )
 
-        base = {
+        # ----------------------------------------------------
+        # DEFAULT VALUES
+        # ----------------------------------------------------
+
+        response_data = {
             "trees": 0,
             "waste": 0,
             "water": 0,
             "volunteers": 0,
-            "students": 0,
+            "students": students_count,
             "campaigns": 0,
             "events": 0,
-            "members": 0,
+            "members": members_count,
         }
 
-        base.update(stats)
+        # ----------------------------------------------------
+        # ADD SAVED IMPACT STATISTICS
+        # ----------------------------------------------------
 
-        return Response(base)
+        response_data.update(stats)
+
+        # ----------------------------------------------------
+        # ALWAYS USE REAL DATABASE COUNTS
+        # ----------------------------------------------------
+
+        response_data["students"] = students_count
+
+        response_data["members"] = members_count
+
+        return Response(
+            response_data
+        )
 
 
 # ============================================================
@@ -413,13 +484,15 @@ class SettingsView(views.APIView):
 
     def get(self, request):
 
-        return Response(
-            dict(
-                WebsiteSetting.objects.values_list(
-                    "key",
-                    "value",
-                )
+        settings_data = dict(
+            WebsiteSetting.objects.values_list(
+                "key",
+                "value",
             )
+        )
+
+        return Response(
+            settings_data
         )
 
 
