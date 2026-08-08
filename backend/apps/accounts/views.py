@@ -17,9 +17,42 @@ from .serializers import (
     UserSerializer,
 )
 
-
 User = get_user_model()
 
+
+# ============================================================
+# CUSTOM ADMIN PERMISSION
+# ============================================================
+
+class IsClubAdmin(permissions.BasePermission):
+    """
+    Allows authenticated Django staff users or users recognized
+    by the project's custom is_staff_member() method.
+    """
+
+    def has_permission(self, request, view):
+        user = request.user
+
+        if not user or not user.is_authenticated:
+            return False
+
+        # Normal Django admin/staff user
+        if user.is_staff:
+            return True
+
+        # Project-specific staff/admin check
+        if hasattr(user, "is_staff_member"):
+            try:
+                return bool(user.is_staff_member())
+            except Exception:
+                return False
+
+        return False
+
+
+# ============================================================
+# REGISTER
+# ============================================================
 
 class RegisterView(APIView):
     permission_classes = [permissions.AllowAny]
@@ -56,8 +89,14 @@ class RegisterView(APIView):
             year=data.get("year", ""),
             gender=data.get("gender", ""),
             college=data.get("college", ""),
-            areas_of_interest=data.get("areas_of_interest", ""),
-            bio_join=data.get("bio_join", ""),
+            areas_of_interest=data.get(
+                "areas_of_interest",
+                "",
+            ),
+            bio_join=data.get(
+                "bio_join",
+                "",
+            ),
         )
 
         membership = Membership.objects.create(
@@ -67,7 +106,10 @@ class RegisterView(APIView):
 
         return Response(
             {
-                "message": "Registration successful. Membership pending approval.",
+                "message": (
+                    "Registration successful. "
+                    "Membership pending approval."
+                ),
                 "membership_id": membership.membership_id,
                 "username": user.username,
             },
@@ -75,14 +117,28 @@ class RegisterView(APIView):
         )
 
 
+# ============================================================
+# CURRENT USER
+# ============================================================
+
 class MeView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
     def get(self, request):
         user = request.user
-        profile = getattr(user, "profile", None)
+
+        profile = getattr(
+            user,
+            "profile",
+            None,
+        )
+
         membership = (
-            getattr(profile, "membership", None)
+            getattr(
+                profile,
+                "membership",
+                None,
+            )
             if profile
             else None
         )
@@ -90,34 +146,49 @@ class MeView(APIView):
         return Response(
             {
                 "user": UserSerializer(user).data,
+
                 "profile": (
                     StudentProfileSerializer(profile).data
                     if profile
                     else None
                 ),
+
                 "membership": (
                     MembershipSerializer(membership).data
                     if membership
                     else None
                 ),
+
                 "notifications": NotificationSerializer(
-                    user.notifications.filter(is_read=False)[:6],
+                    user.notifications.filter(
+                        is_read=False
+                    )[:6],
                     many=True,
                 ).data,
             }
         )
 
 
+# ============================================================
+# UPDATE PROFILE
+# ============================================================
+
 class UpdateProfileView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
     def patch(self, request):
-        profile = getattr(request.user, "profile", None)
+        profile = getattr(
+            request.user,
+            "profile",
+            None,
+        )
 
         if not profile:
             return Response(
-                {"detail": "No student profile."},
-                status=400,
+                {
+                    "detail": "No student profile."
+                },
+                status=status.HTTP_400_BAD_REQUEST,
             )
 
         serializer = StudentProfileSerializer(
@@ -126,11 +197,20 @@ class UpdateProfileView(APIView):
             partial=True,
         )
 
-        serializer.is_valid(raise_exception=True)
+        serializer.is_valid(
+            raise_exception=True
+        )
+
         serializer.save()
 
-        return Response(serializer.data)
+        return Response(
+            serializer.data
+        )
 
+
+# ============================================================
+# MEMBERSHIP LIST
+# ============================================================
 
 class MembershipListView(APIView):
     permission_classes = [permissions.AllowAny]
@@ -143,7 +223,10 @@ class MembershipListView(APIView):
             and user.is_authenticated
             and (
                 user.is_staff
-                or user.is_staff_member()
+                or (
+                    hasattr(user, "is_staff_member")
+                    and user.is_staff_member()
+                )
             )
         )
 
@@ -174,8 +257,14 @@ class MembershipListView(APIView):
         )
 
 
+# ============================================================
+# ECO POINTS
+# ============================================================
+
 class EcoPointsView(APIView):
-    permission_classes = [permissions.IsAuthenticated]
+    permission_classes = [
+        permissions.IsAuthenticated
+    ]
 
     def get(self, request):
         profile = getattr(
@@ -185,20 +274,27 @@ class EcoPointsView(APIView):
         )
 
         membership = (
-            getattr(profile, "membership", None)
+            getattr(
+                profile,
+                "membership",
+                None,
+            )
             if profile
             else None
         )
 
         if not membership:
             return Response(
-                {"detail": "No membership."},
-                status=404,
+                {
+                    "detail": "No membership."
+                },
+                status=status.HTTP_404_NOT_FOUND,
             )
 
         return Response(
             {
                 "total": membership.eco_points,
+
                 "history": EcoPointSerializer(
                     membership.points.all(),
                     many=True,
@@ -207,8 +303,14 @@ class EcoPointsView(APIView):
         )
 
 
+# ============================================================
+# NOTIFICATIONS
+# ============================================================
+
 class NotificationsView(APIView):
-    permission_classes = [permissions.IsAuthenticated]
+    permission_classes = [
+        permissions.IsAuthenticated
+    ]
 
     def get(self, request):
         return Response(
@@ -225,26 +327,41 @@ class NotificationsView(APIView):
 
         return Response(
             {
-                "detail": "All notifications marked as read."
+                "detail": (
+                    "All notifications marked as read."
+                )
             }
         )
 
 
+# ============================================================
+# CHANGE PASSWORD
+# ============================================================
+
 class ChangePasswordView(APIView):
-    permission_classes = [permissions.IsAuthenticated]
+    permission_classes = [
+        permissions.IsAuthenticated
+    ]
 
     def post(self, request):
-        old_password = request.data.get("old_password")
-        new_password = request.data.get("new_password")
+        old_password = request.data.get(
+            "old_password"
+        )
+
+        new_password = request.data.get(
+            "new_password"
+        )
 
         if not request.user.check_password(
             old_password or ""
         ):
             return Response(
                 {
-                    "detail": "Old password is incorrect."
+                    "detail": (
+                        "Old password is incorrect."
+                    )
                 },
-                status=400,
+                status=status.HTTP_400_BAD_REQUEST,
             )
 
         if len(new_password or "") < 6:
@@ -252,36 +369,49 @@ class ChangePasswordView(APIView):
                 {
                     "detail": "Password too short."
                 },
-                status=400,
+                status=status.HTTP_400_BAD_REQUEST,
             )
 
-        request.user.set_password(new_password)
+        request.user.set_password(
+            new_password
+        )
+
         request.user.save()
 
         return Response(
             {
-                "detail": "Password updated successfully."
+                "detail": (
+                    "Password updated successfully."
+                )
             }
         )
 
 
+# ============================================================
+# ADMIN MEMBERSHIP MANAGEMENT
+# ============================================================
+
 class MembershipAdminView(APIView):
-    permission_classes = [permissions.IsAdminUser]
+    """
+    Admin endpoint for approving/rejecting memberships.
+
+    URL:
+        /api/auth/memberships/<id>/
+
+    The important fix here is using IsClubAdmin instead of
+    DRF's IsAdminUser.
+    """
+
+    permission_classes = [IsClubAdmin]
 
     def patch(self, request, pk):
-        new_status = request.data.get("status")
+        new_status = request.data.get(
+            "status"
+        )
 
-        try:
-            membership = (
-                Membership.objects
-                .select_related("profile")
-                .get(pk=pk)
-            )
-        except Membership.DoesNotExist:
-            return Response(
-                {"detail": "Not found."},
-                status=404,
-            )
+        # ----------------------------------------------------
+        # Validate status
+        # ----------------------------------------------------
 
         if new_status not in (
             "approved",
@@ -289,33 +419,105 @@ class MembershipAdminView(APIView):
             "pending",
         ):
             return Response(
-                {"detail": "Invalid status."},
-                status=400,
+                {
+                    "detail": "Invalid status."
+                },
+                status=status.HTTP_400_BAD_REQUEST,
             )
+
+        # ----------------------------------------------------
+        # Find membership
+        # ----------------------------------------------------
+
+        try:
+            membership = (
+                Membership.objects
+                .select_related(
+                    "profile",
+                    "profile__user",
+                )
+                .get(pk=pk)
+            )
+
+        except Membership.DoesNotExist:
+            return Response(
+                {
+                    "detail": "Membership not found."
+                },
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        # ----------------------------------------------------
+        # Update membership status
+        # ----------------------------------------------------
 
         membership.status = new_status
+
         membership.save(
-            update_fields=["status"]
+            update_fields=[
+                "status"
+            ]
         )
+
+        # ----------------------------------------------------
+        # Update user's approval status
+        # ----------------------------------------------------
+
+        user = membership.profile.user
 
         if new_status == "approved":
-            membership.profile.user.is_approved = True
+            user.is_approved = True
 
-            membership.profile.user.save(
-                update_fields=["is_approved"]
+            user.save(
+                update_fields=[
+                    "is_approved"
+                ]
             )
 
+        elif new_status == "rejected":
+            user.is_approved = False
+
+            user.save(
+                update_fields=[
+                    "is_approved"
+                ]
+            )
+
+        elif new_status == "pending":
+            user.is_approved = False
+
+            user.save(
+                update_fields=[
+                    "is_approved"
+                ]
+            )
+
+        # ----------------------------------------------------
+        # Return updated membership
+        # ----------------------------------------------------
+
         return Response(
-            MembershipSerializer(membership).data
+            MembershipSerializer(
+                membership
+            ).data,
+            status=status.HTTP_200_OK,
         )
 
 
+# ============================================================
+# LOGOUT
+# ============================================================
+
 class LogoutView(APIView):
-    permission_classes = [permissions.IsAuthenticated]
+    permission_classes = [
+        permissions.IsAuthenticated
+    ]
 
     def post(self, request):
         try:
-            refresh_token = request.data.get("refresh")
+            refresh_token = request.data.get(
+                "refresh"
+            )
 
             if refresh_token:
                 RefreshToken(
