@@ -9,9 +9,6 @@ import {
   FiEdit2,
   FiTrash2,
   FiLogOut,
-  FiEye,
-  FiCheck,
-  FiX,
 } from 'react-icons/fi'
 
 const TABS = [
@@ -39,7 +36,7 @@ export default function Admin() {
     if (authLoading) return
 
     if (!user || !isAdmin()) {
-      navigate('/login')
+      navigate('/login', { replace: true })
     }
   }, [authLoading, user, isAdmin, navigate])
 
@@ -52,10 +49,11 @@ export default function Admin() {
   }
 
   return (
-    <div className="min-h-screen bg-cream pt-24">
-      <div className="container-x py-8">
-        {/* Header */}
-        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-8">
+    <div className="min-h-screen bg-cream pt-24 pb-12">
+      <div className="container-x">
+
+        {/* HEADER */}
+        <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-5 mb-8">
           <div>
             <h1 className="text-3xl font-bold text-forest-950">
               Admin Dashboard
@@ -91,7 +89,7 @@ export default function Admin() {
           </div>
         </div>
 
-        {/* Tabs */}
+        {/* TABS */}
         <div className="flex flex-wrap gap-2 mb-6">
           {TABS.map((t) => (
             <button
@@ -108,7 +106,7 @@ export default function Admin() {
           ))}
         </div>
 
-        {/* Content */}
+        {/* CONTENT */}
         {tab === 'Overview' && <Overview onNav={setTab} />}
         {tab === 'Students' && <Students />}
         {tab === 'Events' && <Events />}
@@ -127,9 +125,9 @@ export default function Admin() {
   )
 }
 
-/* -------------------------------------------------------
-   Overview
-------------------------------------------------------- */
+/* ============================================================
+   OVERVIEW
+============================================================ */
 
 function Overview({ onNav }) {
   const [impact, setImpact] = useState(null)
@@ -138,7 +136,10 @@ function Overview({ onNav }) {
     api
       .get('/impact/')
       .then((r) => setImpact(r.data))
-      .catch(() => {})
+      .catch((err) => {
+        console.error('Impact API error:', err)
+        setImpact({})
+      })
   }, [])
 
   const cards = [
@@ -170,6 +171,7 @@ function Overview({ onNav }) {
 
   return (
     <div className="space-y-8">
+
       <div>
         <h2 className="text-xl font-bold text-forest-950 mb-4">
           Overview
@@ -228,9 +230,9 @@ function Overview({ onNav }) {
   )
 }
 
-/* -------------------------------------------------------
-   Shared List Hook
-------------------------------------------------------- */
+/* ============================================================
+   SHARED LIST HOOK
+============================================================ */
 
 function useList(url) {
   const [data, setData] = useState([])
@@ -242,9 +244,10 @@ function useList(url) {
     api
       .get(url)
       .then((r) => {
-        setData(r.data.results || r.data || [])
+        setData(r.data?.results || r.data || [])
       })
-      .catch(() => {
+      .catch((err) => {
+        console.error(`API error: ${url}`, err)
         setData([])
       })
       .finally(() => {
@@ -263,9 +266,9 @@ function useList(url) {
   }
 }
 
-/* -------------------------------------------------------
-   Modal
-------------------------------------------------------- */
+/* ============================================================
+   MODAL
+============================================================ */
 
 function Modal({
   open,
@@ -273,21 +276,21 @@ function Modal({
   title,
   children,
   onSave,
-  saving,
+  saving = false,
   color = 'bg-emerald-600',
 }) {
   if (!open) return null
 
   return (
     <div
-      className="fixed inset-0 z-[100] bg-black/50 backdrop-blur-sm p-4 flex items-center justify-center"
+      className="fixed inset-0 z-[100] bg-black/50 backdrop-blur-sm flex items-center justify-center p-4"
       onClick={onClose}
     >
       <div
         className="bg-white rounded-2xl w-full max-w-lg max-h-[85vh] overflow-auto p-6"
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="flex items-center justify-between mb-5">
+        <div className="flex items-center justify-between mb-6">
           <h3 className="text-xl font-bold text-forest-950">
             {title}
           </h3>
@@ -325,45 +328,77 @@ function Modal({
   )
 }
 
-/* -------------------------------------------------------
-   Students
-------------------------------------------------------- */
+/* ============================================================
+   STUDENTS
+============================================================ */
 
 function Students() {
-  const { data, loading, reload } = useList('/auth/memberships/')
+  const { data, loading, reload } =
+    useList('/auth/memberships/')
+
   const [q, setQ] = useState('')
   const toast = useToast()
 
   const filtered = data.filter((m) =>
-    `${m.membership_id || ''} ${
-      m.profile?.register_number || ''
-    } ${m.profile?.user?.full_name || ''}`
+    `${m.membership_id || ''}
+     ${m.profile?.register_number || ''}
+     ${m.profile?.user?.full_name || ''}
+     ${m.profile?.department || ''}`
       .toLowerCase()
       .includes(q.toLowerCase())
   )
 
   const setStatus = async (id, status) => {
     try {
-      await api.patch(`/admin/memberships/${id}/`, {
+      /*
+       * IMPORTANT:
+       *
+       * Django:
+       * path(
+       *   "memberships/<int:pk>/",
+       *   MembershipAdminView.as_view()
+       * )
+       *
+       * Project URL:
+       * /api/auth/
+       *
+       * Final URL:
+       * /api/auth/memberships/<id>/
+       */
+
+      await api.patch(`/auth/memberships/${id}/`, {
         status,
       })
 
       toast('Updated')
       reload()
     } catch (e) {
+      console.error(
+        'Membership update error:',
+        e.response?.data || e
+      )
+
       toast(
-        e.response?.data?.detail || 'Unable to update',
+        e.response?.data?.detail ||
+          e.response?.data?.status?.[0] ||
+          'Unable to update membership',
         'error'
       )
     }
   }
 
   return (
-    <div className="bg-white rounded-2xl shadow-soft p-5">
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 mb-5">
-        <h2 className="text-xl font-bold text-forest-950">
-          Students & Memberships
-        </h2>
+    <div className="bg-white rounded-2xl p-6 shadow-soft">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
+        <div>
+          <h2 className="text-xl font-bold text-forest-950">
+            Students & Memberships
+          </h2>
+
+          <p className="text-sm text-forest-600 mt-1">
+            Manage ECO CLUB student memberships.
+          </p>
+        </div>
 
         <input
           value={q}
@@ -391,7 +426,10 @@ function Students() {
 
             <tbody>
               {filtered.map((m) => (
-                <tr key={m.id} className="border-b last:border-0">
+                <tr
+                  key={m.id}
+                  className="border-b last:border-0"
+                >
                   <td className="py-3">
                     {m.profile?.user?.full_name ||
                       m.membership_id}
@@ -460,14 +498,13 @@ function Students() {
   )
 }
 
-/* -------------------------------------------------------
-   Events
-------------------------------------------------------- */
+/* ============================================================
+   EVENTS
+============================================================ */
 
 function Events() {
-  const { data, loading, reload } = useList(
-    '/events/?page_size=100'
-  )
+  const { data, loading, reload } =
+    useList('/events/?page_size=100')
 
   const toast = useToast()
   const [modal, setModal] = useState(false)
@@ -494,9 +531,11 @@ function Events() {
       setModal(false)
       reload()
     } catch (e) {
+      console.error(e)
+
       toast(
         Object.values(e.response?.data || {})[0]?.[0] ||
-          'Error',
+          'Unable to save event',
         'error'
       )
     } finally {
@@ -505,23 +544,26 @@ function Events() {
   }
 
   const del = async (id) => {
-    if (!confirm('Delete this event?')) return
+    if (!window.confirm('Delete this event?')) return
 
     try {
       await api.delete(`/events/${id}/`)
       toast('Deleted')
       reload()
-    } catch {
+    } catch (e) {
+      console.error(e)
       toast('Unable to delete event', 'error')
     }
   }
 
   return (
-    <div className="bg-white rounded-2xl shadow-soft p-5">
-      <div className="flex items-center justify-between mb-5">
-        <h2 className="text-xl font-bold text-forest-950">
-          Events
-        </h2>
+    <div className="bg-white rounded-2xl p-6 shadow-soft">
+      <div className="flex items-center justify-between mb-6">
+        <div>
+          <h2 className="text-xl font-bold text-forest-950">
+            Events
+          </h2>
+        </div>
 
         <button
           onClick={openNew}
@@ -655,7 +697,7 @@ function Events() {
                 description: e.target.value,
               }))
             }
-            rows="3"
+            rows={3}
             className="w-full px-3 py-2 rounded-lg border border-emerald-200 text-sm outline-none"
           />
         </div>
@@ -664,18 +706,17 @@ function Events() {
   )
 }
 
-/* -------------------------------------------------------
-   Registrations
-------------------------------------------------------- */
+/* ============================================================
+   REGISTRATIONS
+============================================================ */
 
 function Registrations() {
-  const { data, loading } = useList(
-    '/registrations/?page_size=100'
-  )
+  const { data, loading } =
+    useList('/registrations/?page_size=100')
 
   return (
-    <div className="bg-white rounded-2xl shadow-soft p-5">
-      <h2 className="text-xl font-bold text-forest-950 mb-5">
+    <div className="bg-white rounded-2xl p-6 shadow-soft">
+      <h2 className="text-xl font-bold text-forest-950 mb-6">
         Event Registrations
       </h2>
 
@@ -713,18 +754,18 @@ function Registrations() {
   )
 }
 
-/* -------------------------------------------------------
-   Gallery
-------------------------------------------------------- */
+/* ============================================================
+   GALLERY
+============================================================ */
 
 function Gallery() {
-  const { data, loading, reload } = useList(
-    '/gallery/?page_size=100'
-  )
+  const { data, loading, reload } =
+    useList('/gallery/?page_size=100')
 
   const toast = useToast()
   const [file, setFile] = useState(null)
   const [title, setTitle] = useState('')
+  const [uploading, setUploading] = useState(false)
 
   const upload = async () => {
     if (!file) {
@@ -732,8 +773,11 @@ function Gallery() {
       return
     }
 
+    setUploading(true)
+
     try {
       const fd = new FormData()
+
       fd.append('image', file)
       fd.append('title', title)
 
@@ -743,26 +787,30 @@ function Gallery() {
       setFile(null)
       setTitle('')
       reload()
-    } catch {
+    } catch (e) {
+      console.error(e)
       toast('Upload failed', 'error')
+    } finally {
+      setUploading(false)
     }
   }
 
   const del = async (id) => {
-    if (!confirm('Delete image?')) return
+    if (!window.confirm('Delete image?')) return
 
     try {
       await api.delete(`/gallery/${id}/`)
       toast('Deleted')
       reload()
-    } catch {
+    } catch (e) {
+      console.error(e)
       toast('Delete failed', 'error')
     }
   }
 
   return (
-    <div className="bg-white rounded-2xl shadow-soft p-5">
-      <h2 className="text-xl font-bold text-forest-950 mb-5">
+    <div className="bg-white rounded-2xl p-6 shadow-soft">
+      <h2 className="text-xl font-bold text-forest-950 mb-6">
         Photo Gallery
       </h2>
 
@@ -785,9 +833,10 @@ function Gallery() {
 
         <button
           onClick={upload}
-          className="px-4 py-2 rounded-lg bg-emerald-600 text-white text-sm font-semibold"
+          disabled={uploading}
+          className="px-4 py-2 rounded-lg bg-emerald-600 text-white text-sm font-semibold disabled:opacity-60"
         >
-          Upload
+          {uploading ? 'Uploading...' : 'Upload'}
         </button>
       </div>
 
@@ -834,20 +883,22 @@ function Gallery() {
   )
 }
 
-/* -------------------------------------------------------
-   Team
-------------------------------------------------------- */
+/* ============================================================
+   TEAM
+============================================================ */
 
 function Team() {
-  const { data, loading, reload } = useList(
-    '/team/?page_size=100'
-  )
+  const { data, loading, reload } =
+    useList('/team/?page_size=100')
 
   const toast = useToast()
   const [form, setForm] = useState({})
   const [modal, setModal] = useState(false)
+  const [saving, setSaving] = useState(false)
 
   const save = async () => {
+    setSaving(true)
+
     try {
       if (form.id) {
         await api.patch(`/team/${form.id}/`, form)
@@ -858,25 +909,30 @@ function Team() {
       toast('Saved')
       setModal(false)
       reload()
-    } catch {
+    } catch (e) {
+      console.error(e)
       toast('Error', 'error')
+    } finally {
+      setSaving(false)
     }
   }
 
   const del = async (id) => {
-    if (!confirm('Remove?')) return
+    if (!window.confirm('Remove?')) return
 
     try {
       await api.delete(`/team/${id}/`)
+      toast('Removed')
       reload()
-    } catch {
+    } catch (e) {
+      console.error(e)
       toast('Delete failed', 'error')
     }
   }
 
   return (
-    <div className="bg-white rounded-2xl shadow-soft p-5">
-      <div className="flex items-center justify-between mb-5">
+    <div className="bg-white rounded-2xl p-6 shadow-soft">
+      <div className="flex items-center justify-between mb-6">
         <h2 className="text-xl font-bold text-forest-950">
           Team Members
         </h2>
@@ -946,6 +1002,7 @@ function Team() {
         onClose={() => setModal(false)}
         title={form.id ? 'Edit Member' : 'Add Member'}
         onSave={save}
+        saving={saving}
       >
         <Field
           label="Name"
@@ -1005,20 +1062,22 @@ function Team() {
   )
 }
 
-/* -------------------------------------------------------
-   SDGs
-------------------------------------------------------- */
+/* ============================================================
+   SDGS
+============================================================ */
 
 function SDGs() {
-  const { data, loading, reload } = useList(
-    '/sdgs/?page_size=20'
-  )
+  const { data, loading, reload } =
+    useList('/sdgs/?page_size=20')
 
   const toast = useToast()
   const [form, setForm] = useState({})
   const [modal, setModal] = useState(false)
+  const [saving, setSaving] = useState(false)
 
   const save = async () => {
+    setSaving(true)
+
     try {
       if (form.id) {
         await api.patch(`/sdgs/${form.id}/`, form)
@@ -1029,14 +1088,17 @@ function SDGs() {
       toast('Saved')
       setModal(false)
       reload()
-    } catch {
+    } catch (e) {
+      console.error(e)
       toast('Error', 'error')
+    } finally {
+      setSaving(false)
     }
   }
 
   return (
-    <div className="bg-white rounded-2xl shadow-soft p-5">
-      <div className="flex items-center justify-between mb-5">
+    <div className="bg-white rounded-2xl p-6 shadow-soft">
+      <div className="flex items-center justify-between mb-6">
         <h2 className="text-xl font-bold text-forest-950">
           Sustainable Development Goals
         </h2>
@@ -1056,27 +1118,27 @@ function SDGs() {
         <Loader />
       ) : data.length ? (
         <div className="space-y-3">
-          {data.map((s) => (
+          {data.map((sdg) => (
             <div
-              key={s.id}
+              key={sdg.id}
               className="flex items-center gap-3 border border-emerald-100 rounded-xl p-4"
             >
               <span
                 className="w-10 h-10 rounded-lg grid place-items-center text-white font-bold text-sm"
                 style={{
-                  background: s.color || '#10b981',
+                  background: sdg.color || '#10b981',
                 }}
               >
-                {s.number}
+                {sdg.number}
               </span>
 
               <div>
                 <div className="font-semibold">
-                  {s.name}
+                  {sdg.name}
                 </div>
 
                 <div className="text-sm text-gray-500">
-                  {s.activities?.length || 0} activities
+                  {sdg.activities?.length || 0} activities
                 </div>
               </div>
             </div>
@@ -1091,6 +1153,7 @@ function SDGs() {
         onClose={() => setModal(false)}
         title="Add SDG"
         onSave={save}
+        saving={saving}
       >
         <Field
           label="Number"
@@ -1138,7 +1201,7 @@ function SDGs() {
                 contribution: e.target.value,
               }))
             }
-            rows="2"
+            rows={2}
             className="w-full px-3 py-2 rounded-lg border border-emerald-200 text-sm"
           />
         </div>
@@ -1147,20 +1210,22 @@ function SDGs() {
   )
 }
 
-/* -------------------------------------------------------
-   Announcements
-------------------------------------------------------- */
+/* ============================================================
+   ANNOUNCEMENTS
+============================================================ */
 
 function Announcements() {
-  const { data, loading, reload } = useList(
-    '/announcements/?page_size=50'
-  )
+  const { data, loading, reload } =
+    useList('/announcements/?page_size=50')
 
   const toast = useToast()
   const [form, setForm] = useState({})
   const [modal, setModal] = useState(false)
+  const [saving, setSaving] = useState(false)
 
   const save = async () => {
+    setSaving(true)
+
     try {
       if (form.id) {
         await api.patch(
@@ -1174,21 +1239,30 @@ function Announcements() {
       toast('Posted')
       setModal(false)
       reload()
-    } catch {
+    } catch (e) {
+      console.error(e)
       toast('Unable to save announcement', 'error')
+    } finally {
+      setSaving(false)
     }
   }
 
   const del = async (id) => {
-    if (!confirm('Delete?')) return
+    if (!window.confirm('Delete?')) return
 
-    await api.delete(`/announcements/${id}/`)
-    reload()
+    try {
+      await api.delete(`/announcements/${id}/`)
+      toast('Deleted')
+      reload()
+    } catch (e) {
+      console.error(e)
+      toast('Delete failed', 'error')
+    }
   }
 
   return (
-    <div className="bg-white rounded-2xl shadow-soft p-5">
-      <div className="flex items-center justify-between mb-5">
+    <div className="bg-white rounded-2xl p-6 shadow-soft">
+      <div className="flex items-center justify-between mb-6">
         <h2 className="text-xl font-bold text-forest-950">
           Announcements
         </h2>
@@ -1240,8 +1314,13 @@ function Announcements() {
       <Modal
         open={modal}
         onClose={() => setModal(false)}
-        title={form.id ? 'Edit Announcement' : 'New Announcement'}
+        title={
+          form.id
+            ? 'Edit Announcement'
+            : 'New Announcement'
+        }
         onSave={save}
+        saving={saving}
       >
         <Field
           label="Title"
@@ -1264,7 +1343,7 @@ function Announcements() {
                 body: e.target.value,
               }))
             }
-            rows="4"
+            rows={4}
             className="w-full px-3 py-2 rounded-lg border border-emerald-200 text-sm"
           />
         </div>
@@ -1273,20 +1352,22 @@ function Announcements() {
   )
 }
 
-/* -------------------------------------------------------
-   Blog
-------------------------------------------------------- */
+/* ============================================================
+   BLOG
+============================================================ */
 
 function Blog() {
-  const { data, loading, reload } = useList(
-    '/blog/?page_size=50'
-  )
+  const { data, loading, reload } =
+    useList('/blog/?page_size=50')
 
   const toast = useToast()
   const [form, setForm] = useState({})
   const [modal, setModal] = useState(false)
+  const [saving, setSaving] = useState(false)
 
   const save = async () => {
+    setSaving(true)
+
     try {
       if (form.id) {
         await api.patch(`/blog/${form.id}/`, form)
@@ -1297,21 +1378,30 @@ function Blog() {
       toast('Published')
       setModal(false)
       reload()
-    } catch {
+    } catch (e) {
+      console.error(e)
       toast('Unable to save post', 'error')
+    } finally {
+      setSaving(false)
     }
   }
 
   const del = async (id) => {
-    if (!confirm('Delete post?')) return
+    if (!window.confirm('Delete post?')) return
 
-    await api.delete(`/blog/${id}/`)
-    reload()
+    try {
+      await api.delete(`/blog/${id}/`)
+      toast('Deleted')
+      reload()
+    } catch (e) {
+      console.error(e)
+      toast('Delete failed', 'error')
+    }
   }
 
   return (
-    <div className="bg-white rounded-2xl shadow-soft p-5">
-      <div className="flex items-center justify-between mb-5">
+    <div className="bg-white rounded-2xl p-6 shadow-soft">
+      <div className="flex items-center justify-between mb-6">
         <h2 className="text-xl font-bold text-forest-950">
           Blog Posts
         </h2>
@@ -1365,6 +1455,7 @@ function Blog() {
         onClose={() => setModal(false)}
         title={form.id ? 'Edit Blog Post' : 'New Blog Post'}
         onSave={save}
+        saving={saving}
       >
         <Field
           label="Title"
@@ -1403,7 +1494,7 @@ function Blog() {
                 content: e.target.value,
               }))
             }
-            rows="5"
+            rows={5}
             className="w-full px-3 py-2 rounded-lg border border-emerald-200 text-sm"
           />
         </div>
@@ -1412,29 +1503,35 @@ function Blog() {
   )
 }
 
-/* -------------------------------------------------------
-   Certificates
-------------------------------------------------------- */
+/* ============================================================
+   CERTIFICATES
+============================================================ */
 
 function Certificates() {
-  const { data, loading, reload } = useList(
-    '/participants/?page_size=100'
-  )
+  const { data, loading, reload } =
+    useList('/participants/?page_size=100')
 
   const toast = useToast()
 
   const certify = async (id) => {
     try {
       await api.post(`/participants/${id}/certify/`)
+
       toast('Certificate generated!')
       reload()
-    } catch {
-      toast('Unable to generate certificate', 'error')
+    } catch (e) {
+      console.error(e)
+
+      toast(
+        e.response?.data?.detail ||
+          'Unable to generate certificate',
+        'error'
+      )
     }
   }
 
   return (
-    <div className="bg-white rounded-2xl shadow-soft p-5">
+    <div className="bg-white rounded-2xl p-6 shadow-soft">
       <h2 className="text-xl font-bold text-forest-950">
         Event Participants → Certificates
       </h2>
@@ -1485,18 +1582,17 @@ function Certificates() {
   )
 }
 
-/* -------------------------------------------------------
-   Messages
-------------------------------------------------------- */
+/* ============================================================
+   MESSAGES
+============================================================ */
 
 function Messages() {
-  const { data, loading } = useList(
-    '/contact/admin/?page_size=50'
-  )
+  const { data, loading } =
+    useList('/contact/admin/?page_size=50')
 
   return (
-    <div className="bg-white rounded-2xl shadow-soft p-5">
-      <h2 className="text-xl font-bold text-forest-950 mb-5">
+    <div className="bg-white rounded-2xl p-6 shadow-soft">
+      <h2 className="text-xl font-bold text-forest-950 mb-6">
         Contact Messages
       </h2>
 
@@ -1539,14 +1635,13 @@ function Messages() {
   )
 }
 
-/* -------------------------------------------------------
-   Impact
-------------------------------------------------------- */
+/* ============================================================
+   IMPACT
+============================================================ */
 
 function Impact() {
-  const { data, loading, reload } = useList(
-    '/impact/admin/?page_size=20'
-  )
+  const { data, loading, reload } =
+    useList('/impact/admin/?page_size=20')
 
   const toast = useToast()
   const [form, setForm] = useState({})
@@ -1554,19 +1649,21 @@ function Impact() {
   const update = async (id, metric, fallback) => {
     try {
       await api.patch(`/impact/admin/${id}/`, {
-        value: parseInt(form[metric] ?? fallback, 10) || 0,
+        value:
+          parseInt(form[metric] ?? fallback, 10) || 0,
       })
 
       toast('Updated')
       reload()
-    } catch {
+    } catch (e) {
+      console.error(e)
       toast('Unable to update impact', 'error')
     }
   }
 
   return (
-    <div className="bg-white rounded-2xl shadow-soft p-5">
-      <h2 className="text-xl font-bold text-forest-950 mb-5">
+    <div className="bg-white rounded-2xl p-6 shadow-soft">
+      <h2 className="text-xl font-bold text-forest-950 mb-6">
         Impact Statistics
       </h2>
 
@@ -1574,32 +1671,32 @@ function Impact() {
         <Loader />
       ) : data.length ? (
         <div className="space-y-3">
-          {data.map((s) => (
+          {data.map((item) => (
             <div
-              key={s.id}
+              key={item.id}
               className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border border-emerald-100 rounded-xl p-4"
             >
               <div>
                 <div className="font-semibold capitalize">
-                  {(s.label || s.metric || '').replace(
+                  {(item.label || item.metric || '').replace(
                     /_/g,
                     ' '
                   )}
                 </div>
 
                 <div className="text-xs text-gray-500">
-                  metric: {s.metric}
+                  metric: {item.metric}
                 </div>
               </div>
 
               <div className="flex items-center gap-2">
                 <input
                   type="number"
-                  defaultValue={s.value}
+                  defaultValue={item.value}
                   onChange={(e) =>
                     setForm((f) => ({
                       ...f,
-                      [s.metric]: e.target.value,
+                      [item.metric]: e.target.value,
                     }))
                   }
                   className="w-24 px-2 py-1.5 rounded-lg border border-emerald-200 text-sm"
@@ -1607,7 +1704,11 @@ function Impact() {
 
                 <button
                   onClick={() =>
-                    update(s.id, s.metric, s.value)
+                    update(
+                      item.id,
+                      item.metric,
+                      item.value
+                    )
                   }
                   className="px-3 py-1.5 rounded-lg bg-emerald-600 text-white text-sm"
                 >
@@ -1624,14 +1725,13 @@ function Impact() {
   )
 }
 
-/* -------------------------------------------------------
-   Settings
-------------------------------------------------------- */
+/* ============================================================
+   SETTINGS
+============================================================ */
 
 function Settings() {
-  const { data, loading, reload } = useList(
-    '/settings/admin/?page_size=100'
-  )
+  const { data, loading, reload } =
+    useList('/settings/admin/?page_size=100')
 
   const toast = useToast()
   const [edits, setEdits] = useState({})
@@ -1645,15 +1745,17 @@ function Settings() {
       }
 
       toast('Settings saved')
+      setEdits({})
       reload()
-    } catch {
+    } catch (e) {
+      console.error(e)
       toast('Unable to save settings', 'error')
     }
   }
 
   return (
-    <div className="bg-white rounded-2xl shadow-soft p-5">
-      <h2 className="text-xl font-bold text-forest-950 mb-5">
+    <div className="bg-white rounded-2xl p-6 shadow-soft">
+      <h2 className="text-xl font-bold text-forest-950 mb-6">
         Website Settings
       </h2>
 
@@ -1690,8 +1792,8 @@ function Settings() {
           </button>
 
           <p className="text-sm text-gray-500 mt-4">
-            Tip: Upload the college logo by uploading an image
-            below — it will be used across the site.
+            Tip: Upload the college logo by uploading an
+            image below — it will be used across the site.
           </p>
         </>
       )}
@@ -1699,9 +1801,9 @@ function Settings() {
   )
 }
 
-/* -------------------------------------------------------
-   Field
-------------------------------------------------------- */
+/* ============================================================
+   FIELD
+============================================================ */
 
 function Field({
   label,
@@ -1722,7 +1824,9 @@ function Field({
           onChange={(e) => onChange(e.target.value)}
           className="w-full px-3 py-2 rounded-lg border border-emerald-200 text-sm outline-none"
         >
-          <option value="">Select {label}</option>
+          <option value="">
+            Select {label}
+          </option>
 
           {options.map((option) => (
             <option key={option} value={option}>
