@@ -77,6 +77,9 @@ class OverviewView(views.APIView):
         # ----------------------------------------------------
         # TOTAL STUDENTS
         # ----------------------------------------------------
+        # Shows the actual number of student users.
+        # If there are no students, this returns 0.
+        # ----------------------------------------------------
 
         students_count = User.objects.filter(
             role="student"
@@ -109,11 +112,16 @@ class OverviewView(views.APIView):
         # ----------------------------------------------------
         # EVENTS
         # ----------------------------------------------------
+        # Change this later if you have an Event model.
+        # ----------------------------------------------------
 
         events_count = 0
 
         # ----------------------------------------------------
         # REGISTRATIONS
+        # ----------------------------------------------------
+        # Change this later if you have an EventRegistration
+        # model.
         # ----------------------------------------------------
 
         registrations_count = 0
@@ -414,11 +422,15 @@ class BlogViewSet(viewsets.ModelViewSet):
 
 class ContactCreateView(views.APIView):
 
+    # Anyone can send a contact message.
     permission_classes = [
         permissions.AllowAny
     ]
 
-    def post(self, request):
+    # Do not require JWT authentication.
+    authentication_classes = []
+
+    def post(self, request, *args, **kwargs):
 
         serializer = ContactMessageSerializer(
             data=request.data

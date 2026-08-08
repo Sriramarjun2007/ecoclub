@@ -1,5 +1,6 @@
 import React, { useState } from 'react'
 import { useSettings } from '../context/SettingsContext'
+import api from '../lib/api'
 
 export default function Contact() {
   const { s } = useSettings()
@@ -12,6 +13,7 @@ export default function Contact() {
   })
 
   const [loading, setLoading] = useState(false)
+
   const [status, setStatus] = useState({
     type: '',
     message: '',
@@ -63,7 +65,6 @@ export default function Contact() {
       [name]: value,
     }))
 
-    // Remove error when user starts typing
     if (status.type === 'error') {
       setStatus({
         type: '',
@@ -84,7 +85,10 @@ export default function Contact() {
       message: '',
     })
 
-    // Basic validation
+    // ------------------------------------------
+    // VALIDATION
+    // ------------------------------------------
+
     if (!form.name.trim()) {
       setStatus({
         type: 'error',
@@ -101,7 +105,11 @@ export default function Contact() {
       return
     }
 
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email)) {
+    if (
+      !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(
+        form.email.trim()
+      )
+    ) {
       setStatus({
         type: 'error',
         message: 'Please enter a valid email address.',
@@ -125,34 +133,36 @@ export default function Contact() {
       return
     }
 
+    // ------------------------------------------
+    // SEND TO DJANGO
+    // ------------------------------------------
+
     try {
       setLoading(true)
 
-      /*
-       * If you already have a backend API,
-       * replace this section with your API call.
-       *
-       * Example:
-       *
-       * await fetch('/api/contact/', {
-       *   method: 'POST',
-       *   headers: {
-       *     'Content-Type': 'application/json',
-       *   },
-       *   body: JSON.stringify(form),
-       * })
-       */
+      const response = await api.post(
+        '/contact/',
+        {
+          name: form.name.trim(),
+          email: form.email.trim(),
+          subject: form.subject.trim(),
+          message: form.message.trim(),
+        }
+      )
 
-      await new Promise((resolve) =>
-        setTimeout(resolve, 1000)
+      console.log(
+        'Contact API response:',
+        response.data
       )
 
       setStatus({
         type: 'success',
         message:
+          response.data?.detail ||
           'Your message has been sent successfully. We will get back to you soon.',
       })
 
+      // Clear form after successful submission
       setForm({
         name: '',
         email: '',
@@ -160,31 +170,67 @@ export default function Contact() {
         message: '',
       })
     } catch (error) {
-      console.error(error)
+      console.error(
+        'Contact form error:',
+        error.response?.data || error
+      )
+
+      let errorMessage =
+        'Something went wrong. Please try again later.'
+
+      if (error.response?.status === 400) {
+        const data = error.response?.data
+
+        if (data?.errors) {
+          const firstError = Object.values(
+            data.errors
+          )[0]
+
+          if (Array.isArray(firstError)) {
+            errorMessage = firstError[0]
+          }
+        } else if (data?.detail) {
+          errorMessage = data.detail
+        }
+      }
+
+      if (error.response?.status === 401) {
+        errorMessage =
+          'The contact endpoint requires authentication. Please check the backend configuration.'
+      }
+
+      if (error.response?.status === 404) {
+        errorMessage =
+          'Contact API endpoint was not found. Please check the backend URL.'
+      }
+
+      if (error.response?.status === 500) {
+        errorMessage =
+          'Server error. Please check the Django backend.'
+      }
 
       setStatus({
         type: 'error',
-        message:
-          'Something went wrong. Please try again later.',
+        message: errorMessage,
       })
     } finally {
       setLoading(false)
     }
   }
 
-  return (
-    <div className="min-h-screen bg-[#f5f8f3]">
+  // ==========================================
+  // UI
+  // ==========================================
 
+  return (
+    <div>
       {/* ==========================================
           HERO
       ========================================== */}
 
       <section className="px-6 pb-10 pt-28 lg:px-8 lg:pt-36">
-
         <div className="mx-auto max-w-7xl">
-
           <div className="max-w-3xl">
-
             <p className="mb-3 text-sm font-semibold uppercase tracking-[0.25em] text-emerald-600">
               {clubName}
             </p>
@@ -194,26 +240,20 @@ export default function Contact() {
             </h1>
 
             <p className="mt-5 max-w-2xl text-base leading-7 text-slate-600 sm:text-lg">
-              Have a question, suggestion, collaboration idea, or
-              want to know more about our activities? We'd love to
-              hear from you.
+              Have a question, suggestion, collaboration
+              idea, or want to know more about our
+              activities? We'd love to hear from you.
             </p>
-
           </div>
-
         </div>
-
       </section>
-
 
       {/* ==========================================
           CONTACT SECTION
       ========================================== */}
 
       <section className="px-6 pb-20 lg:px-8">
-
         <div className="mx-auto max-w-7xl">
-
           <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
 
             {/* ======================================
@@ -225,7 +265,6 @@ export default function Contact() {
               {/* COLLEGE */}
 
               <div className="rounded-3xl bg-white p-7 shadow-sm ring-1 ring-slate-100 transition-all duration-300 hover:-translate-y-1 hover:shadow-md sm:p-8">
-
                 <p className="mb-2 text-sm font-semibold uppercase tracking-wide text-emerald-600">
                   College
                 </p>
@@ -233,14 +272,11 @@ export default function Contact() {
                 <h2 className="text-xl font-medium text-slate-800">
                   {collegeName}
                 </h2>
-
               </div>
-
 
               {/* OFFICE */}
 
               <div className="rounded-3xl bg-white p-7 shadow-sm ring-1 ring-slate-100 transition-all duration-300 hover:-translate-y-1 hover:shadow-md sm:p-8">
-
                 <p className="mb-2 text-sm font-semibold uppercase tracking-wide text-emerald-600">
                   Office
                 </p>
@@ -248,14 +284,11 @@ export default function Contact() {
                 <h2 className="text-xl font-medium text-slate-800">
                   {officeName}
                 </h2>
-
               </div>
-
 
               {/* ADDRESS */}
 
               <div className="rounded-3xl bg-white p-7 shadow-sm ring-1 ring-slate-100 transition-all duration-300 hover:-translate-y-1 hover:shadow-md sm:p-8">
-
                 <p className="mb-2 text-sm font-semibold uppercase tracking-wide text-emerald-600">
                   Address
                 </p>
@@ -263,14 +296,11 @@ export default function Contact() {
                 <p className="text-lg leading-7 text-slate-800">
                   {address}
                 </p>
-
               </div>
-
 
               {/* EMAIL */}
 
               <div className="rounded-3xl bg-white p-7 shadow-sm ring-1 ring-slate-100 transition-all duration-300 hover:-translate-y-1 hover:shadow-md sm:p-8">
-
                 <p className="mb-2 text-sm font-semibold uppercase tracking-wide text-emerald-600">
                   Email
                 </p>
@@ -281,29 +311,26 @@ export default function Contact() {
                 >
                   {email}
                 </a>
-
               </div>
-
 
               {/* PHONE */}
 
               <div className="rounded-3xl bg-white p-7 shadow-sm ring-1 ring-slate-100 transition-all duration-300 hover:-translate-y-1 hover:shadow-md sm:p-8">
-
                 <p className="mb-2 text-sm font-semibold uppercase tracking-wide text-emerald-600">
                   Phone
                 </p>
 
                 <a
-                  href={`tel:${phone.replace(/\s/g, '')}`}
+                  href={`tel:${phone.replace(
+                    /\s/g,
+                    ''
+                  )}`}
                   className="text-lg font-medium text-emerald-700 transition-colors hover:text-emerald-500"
                 >
                   {phone}
                 </a>
-
               </div>
-
             </div>
-
 
             {/* ======================================
                 CONTACT FORM
@@ -312,7 +339,6 @@ export default function Contact() {
             <div className="rounded-3xl bg-white p-7 shadow-sm ring-1 ring-slate-100 sm:p-10 lg:p-10">
 
               <div className="mb-8">
-
                 <p className="mb-2 text-sm font-semibold uppercase tracking-wide text-emerald-600">
                   Contact Us
                 </p>
@@ -322,12 +348,11 @@ export default function Contact() {
                 </h2>
 
                 <p className="mt-2 text-sm leading-6 text-slate-500">
-                  Fill out the form below and our team will get
-                  back to you as soon as possible.
+                  Fill out the form below and our team
+                  will get back to you as soon as
+                  possible.
                 </p>
-
               </div>
-
 
               <form
                 onSubmit={handleSubmit}
@@ -341,12 +366,14 @@ export default function Contact() {
                   {/* NAME */}
 
                   <div>
-
                     <label
                       htmlFor="name"
                       className="mb-2 block text-sm font-medium text-slate-800"
                     >
-                      Name <span className="text-red-500">*</span>
+                      Name{' '}
+                      <span className="text-red-500">
+                        *
+                      </span>
                     </label>
 
                     <input
@@ -356,21 +383,22 @@ export default function Contact() {
                       value={form.name}
                       onChange={handleChange}
                       placeholder="Enter your name"
+                      autoComplete="name"
                       className="w-full rounded-xl border border-emerald-200 bg-white px-4 py-4 text-slate-800 outline-none transition-all placeholder:text-slate-400 focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10"
                     />
-
                   </div>
-
 
                   {/* EMAIL */}
 
                   <div>
-
                     <label
                       htmlFor="email"
                       className="mb-2 block text-sm font-medium text-slate-800"
                     >
-                      Email <span className="text-red-500">*</span>
+                      Email{' '}
+                      <span className="text-red-500">
+                        *
+                      </span>
                     </label>
 
                     <input
@@ -380,23 +408,23 @@ export default function Contact() {
                       value={form.email}
                       onChange={handleChange}
                       placeholder="Enter your email"
+                      autoComplete="email"
                       className="w-full rounded-xl border border-emerald-200 bg-white px-4 py-4 text-slate-800 outline-none transition-all placeholder:text-slate-400 focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10"
                     />
-
                   </div>
-
                 </div>
-
 
                 {/* SUBJECT */}
 
                 <div>
-
                   <label
                     htmlFor="subject"
                     className="mb-2 block text-sm font-medium text-slate-800"
                   >
-                    Subject <span className="text-red-500">*</span>
+                    Subject{' '}
+                    <span className="text-red-500">
+                      *
+                    </span>
                   </label>
 
                   <input
@@ -408,35 +436,33 @@ export default function Contact() {
                     placeholder="What would you like to contact us about?"
                     className="w-full rounded-xl border border-emerald-200 bg-white px-4 py-4 text-slate-800 outline-none transition-all placeholder:text-slate-400 focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10"
                   />
-
                 </div>
-
 
                 {/* MESSAGE */}
 
                 <div>
-
                   <label
                     htmlFor="message"
                     className="mb-2 block text-sm font-medium text-slate-800"
                   >
-                    Message <span className="text-red-500">*</span>
+                    Message{' '}
+                    <span className="text-red-500">
+                      *
+                    </span>
                   </label>
 
                   <textarea
                     id="message"
                     name="message"
-                    rows="7"
+                    rows={7}
                     value={form.message}
                     onChange={handleChange}
                     placeholder="Write your message..."
                     className="w-full resize-none rounded-xl border border-emerald-200 bg-white px-4 py-4 text-slate-800 outline-none transition-all placeholder:text-slate-400 focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10"
                   />
-
                 </div>
 
-
-                {/* STATUS MESSAGE */}
+                {/* STATUS */}
 
                 {status.message && (
                   <div
@@ -450,7 +476,6 @@ export default function Contact() {
                   </div>
                 )}
 
-
                 {/* SUBMIT */}
 
                 <button
@@ -458,31 +483,22 @@ export default function Contact() {
                   disabled={loading}
                   className="flex w-full items-center justify-center rounded-xl bg-emerald-600 px-6 py-4 text-base font-semibold text-white shadow-sm transition-all duration-300 hover:bg-emerald-700 hover:shadow-lg focus:outline-none focus:ring-4 focus:ring-emerald-500/20 disabled:cursor-not-allowed disabled:opacity-60"
                 >
-
                   {loading ? (
                     <span className="flex items-center gap-3">
-
                       <span className="h-5 w-5 animate-spin rounded-full border-2 border-white/30 border-t-white" />
 
                       Sending...
-
                     </span>
                   ) : (
                     'Send Message'
                   )}
-
                 </button>
-
               </form>
-
             </div>
-
           </div>
-
         </div>
-
       </section>
-
     </div>
   )
 }
+
