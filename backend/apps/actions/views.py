@@ -1,6 +1,7 @@
-import json
 
-from rest_framework import permissions, viewsets, views
+from django.utils.text import slugify
+
+from rest_framework import permissions, viewsets, views, status
 from rest_framework.response import Response
 
 from .models import (
@@ -31,25 +32,34 @@ from .serializers import (
     WebsiteSettingSerializer,
 )
 
+from apps.accounts.permissions import IsClubAdmin
+
 
 # ============================================================
 # ADMIN OR READ ONLY
 # ============================================================
 
 class IsAdminOrReadOnly(permissions.BasePermission):
+    """
+    Public users can GET/HEAD/OPTIONS.
+
+    Only Eco Club admins can:
+    - POST
+    - PUT
+    - PATCH
+    - DELETE
+    """
+
+    message = "You do not have permission to perform this action."
 
     def has_permission(self, request, view):
 
         if request.method in permissions.SAFE_METHODS:
             return True
 
-        return (
-            request.user
-            and request.user.is_authenticated
-            and (
-                request.user.is_staff
-                or request.user.is_staff_member()
-            )
+        return IsClubAdmin().has_permission(
+            request,
+            view,
         )
 
 
@@ -59,20 +69,28 @@ class IsAdminOrReadOnly(permissions.BasePermission):
 
 class SDGViewSet(viewsets.ModelViewSet):
 
-    queryset = SDG.objects.all().prefetch_related("activities")
+    queryset = SDG.objects.all().prefetch_related(
+        "activities"
+    )
 
     serializer_class = SDGSerializer
 
-    permission_classes = [IsAdminOrReadOnly]
+    permission_classes = [
+        IsAdminOrReadOnly
+    ]
 
-    filterset_fields = ["number"]
+    filterset_fields = [
+        "number",
+    ]
 
     def get_queryset(self):
 
         qs = super().get_queryset()
 
         if self.request.query_params.get("featured"):
-            qs = qs.filter(is_featured=True)
+            qs = qs.filter(
+                is_featured=True
+            )
 
         return qs
 
@@ -87,7 +105,9 @@ class GalleryCategoryViewSet(viewsets.ModelViewSet):
 
     serializer_class = GalleryCategorySerializer
 
-    permission_classes = [IsAdminOrReadOnly]
+    permission_classes = [
+        IsAdminOrReadOnly
+    ]
 
 
 # ============================================================
@@ -100,7 +120,9 @@ class GalleryImageViewSet(viewsets.ModelViewSet):
 
     serializer_class = GalleryImageSerializer
 
-    permission_classes = [IsAdminOrReadOnly]
+    permission_classes = [
+        IsAdminOrReadOnly
+    ]
 
     filterset_fields = [
         "category",
@@ -123,7 +145,9 @@ class MemoryViewSet(viewsets.ModelViewSet):
 
     serializer_class = MemorySerializer
 
-    permission_classes = [IsAdminOrReadOnly]
+    permission_classes = [
+        IsAdminOrReadOnly
+    ]
 
     filterset_fields = [
         "is_highlight",
@@ -140,7 +164,9 @@ class TeamViewSet(viewsets.ModelViewSet):
 
     serializer_class = TeamMemberSerializer
 
-    permission_classes = [IsAdminOrReadOnly]
+    permission_classes = [
+        IsAdminOrReadOnly
+    ]
 
     filterset_fields = [
         "role",
@@ -163,7 +189,9 @@ class AnnouncementViewSet(viewsets.ModelViewSet):
 
     serializer_class = AnnouncementSerializer
 
-    permission_classes = [IsAdminOrReadOnly]
+    permission_classes = [
+        IsAdminOrReadOnly
+    ]
 
     filterset_fields = [
         "category",
@@ -179,17 +207,21 @@ class AnnouncementViewSet(viewsets.ModelViewSet):
 
         qs = super().get_queryset()
 
-        u = self.request.user
+        user = self.request.user
 
-        if not (
-            u
-            and u.is_authenticated
-            and (
-                u.is_staff
-                or u.is_staff_member()
+        is_admin = (
+            user
+            and user.is_authenticated
+            and IsClubAdmin().has_permission(
+                self.request,
+                self,
             )
-        ):
-            qs = qs.filter(is_active=True)
+        )
+
+        if not is_admin:
+            qs = qs.filter(
+                is_active=True
+            )
 
         return qs
 
@@ -204,7 +236,9 @@ class BlogViewSet(viewsets.ModelViewSet):
 
     serializer_class = BlogPostSerializer
 
-    permission_classes = [IsAdminOrReadOnly]
+    permission_classes = [
+        IsAdminOrReadOnly
+    ]
 
     filterset_fields = [
         "category",
@@ -223,17 +257,21 @@ class BlogViewSet(viewsets.ModelViewSet):
 
         qs = super().get_queryset()
 
-        u = self.request.user
+        user = self.request.user
 
-        if not (
-            u
-            and u.is_authenticated
-            and (
-                u.is_staff
-                or u.is_staff_member()
+        is_admin = (
+            user
+            and user.is_authenticated
+            and IsClubAdmin().has_permission(
+                self.request,
+                self,
             )
-        ):
-            qs = qs.filter(is_published=True)
+        )
+
+        if not is_admin:
+            qs = qs.filter(
+                is_published=True
+            )
 
         return qs
 
@@ -243,15 +281,15 @@ class BlogViewSet(viewsets.ModelViewSet):
 
         if not post.slug:
 
-            from django.utils.text import slugify
-
             post.slug = (
                 slugify(post.title)
                 or f"post-{post.pk}"
             )
 
             post.save(
-                update_fields=["slug"]
+                update_fields=[
+                    "slug"
+                ]
             )
 
 
@@ -284,7 +322,7 @@ class ContactCreateView(views.APIView):
                     "We will get back to you soon."
                 )
             },
-            status=201,
+            status=status.HTTP_201_CREATED,
         )
 
 
@@ -300,8 +338,10 @@ class ContactAdminViewSet(
 
     serializer_class = ContactMessageSerializer
 
+    # IMPORTANT:
+    # Do NOT use permissions.IsAdminUser here.
     permission_classes = [
-        permissions.IsAdminUser
+        IsClubAdmin
     ]
 
     filterset_fields = [
@@ -311,12 +351,6 @@ class ContactAdminViewSet(
 
 # ============================================================
 # IMPACT
-# ============================================================
-# IMPORTANT:
-# API structure is NOT changed.
-# Existing metric keys remain the same so your
-# current frontend functionality continues working.
-# Only their meaning/display is changed in META.
 # ============================================================
 
 class ImpactView(views.APIView):
@@ -330,7 +364,7 @@ class ImpactView(views.APIView):
         stats = dict(
             ImpactStatistic.objects.values_list(
                 "metric",
-                "value"
+                "value",
             )
         )
 
@@ -363,7 +397,7 @@ class ImpactAdminViewSet(
     serializer_class = ImpactStatisticSerializer
 
     permission_classes = [
-        permissions.IsAdminUser
+        IsClubAdmin
     ]
 
 
@@ -383,7 +417,7 @@ class SettingsView(views.APIView):
             dict(
                 WebsiteSetting.objects.values_list(
                     "key",
-                    "value"
+                    "value",
                 )
             )
         )
@@ -402,7 +436,7 @@ class SettingsAdminViewSet(
     serializer_class = WebsiteSettingSerializer
 
     permission_classes = [
-        permissions.IsAdminUser
+        IsClubAdmin
     ]
 
 
@@ -410,12 +444,15 @@ class SettingsAdminViewSet(
 # UPLOAD
 # ============================================================
 
-class UploadViewSet(viewsets.ModelViewSet):
+class UploadViewSet(
+    viewsets.ModelViewSet
+):
 
     queryset = UploadedFile.objects.all()
 
     serializer_class = UploadedFileSerializer
 
     permission_classes = [
-        permissions.IsAdminUser
+        IsClubAdmin
     ]
+
