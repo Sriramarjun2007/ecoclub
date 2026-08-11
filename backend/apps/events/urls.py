@@ -4,6 +4,7 @@ from rest_framework.routers import DefaultRouter
 from .views import (
     CertificatePrintView,
     CertificateViewSet,
+    EventRegisterView,
     EventViewSet,
     ParticipantViewSet,
     RegistrationViewSet,
@@ -12,6 +13,44 @@ from .views import (
 app_name = "events"
 
 router = DefaultRouter()
+
+
+# ============================================================
+# PUBLIC EVENT REGISTRATION
+# ============================================================
+
+urlpatterns = [
+
+    path(
+        "events/<slug:slug>/register/",
+        EventRegisterView.as_view(),
+        name="event-register",
+    ),
+
+    # ========================================================
+    # CERTIFICATE PRINT
+    # ========================================================
+
+    path(
+        "certificates/<int:pk>/print/",
+        CertificatePrintView.as_view(),
+        name="certificate-print",
+    ),
+
+    # ========================================================
+    # ROUTER APIs
+    # ========================================================
+
+    path(
+        "",
+        include(router.urls),
+    ),
+]
+
+
+# ============================================================
+# ROUTER REGISTRATIONS
+# ============================================================
 
 router.register(
     r"events",
@@ -36,16 +75,3 @@ router.register(
     CertificateViewSet,
     basename="certificate",
 )
-
-urlpatterns = [
-    path(
-        "",
-        include(router.urls),
-    ),
-
-    path(
-        "certificates/<int:pk>/print/",
-        CertificatePrintView.as_view(),
-        name="certificate-print",
-    ),
-]

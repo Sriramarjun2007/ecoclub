@@ -1,4 +1,6 @@
-"""Root URL configuration for the ECO CLUB platform."""
+"""
+Root URL configuration for the ECO CLUB platform.
+"""
 
 from django.conf import settings
 from django.conf.urls.static import static
@@ -16,28 +18,16 @@ def home(request):
 
 
 urlpatterns = [
-    # ========================================================
-    # HOME
-    # ========================================================
-
     path(
         "",
         home,
         name="home",
     ),
 
-    # ========================================================
-    # DJANGO ADMIN
-    # ========================================================
-
     path(
         "admin/",
         admin.site.urls,
     ),
-
-    # ========================================================
-    # API
-    # ========================================================
 
     path(
         "api/",
@@ -45,10 +35,6 @@ urlpatterns = [
     ),
 ]
 
-
-# ============================================================
-# MEDIA FILES - DEVELOPMENT ONLY
-# ============================================================
 
 if settings.DEBUG:
     urlpatterns += static(

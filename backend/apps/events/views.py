@@ -1,3 +1,4 @@
+from django.shortcuts import render
 from django.utils.text import slugify
 
 from rest_framework import permissions, status, viewsets
@@ -35,6 +36,7 @@ class IsAdminOrReadOnly(permissions.BasePermission):
 
     def has_permission(self, request, view):
 
+        # GET / HEAD / OPTIONS are public
         if request.method in permissions.SAFE_METHODS:
             return True
 
@@ -67,10 +69,6 @@ class EventViewSet(viewsets.ModelViewSet):
 
     serializer_class = EventListSerializer
 
-    permission_classes = [
-        IsAdminOrReadOnly,
-    ]
-
     lookup_field = "slug"
 
     filterset_fields = [
@@ -97,12 +95,6 @@ class EventViewSet(viewsets.ModelViewSet):
 
     def get_permissions(self):
 
-        # PUBLIC REGISTRATION
-        if self.action == "register":
-            return [
-                permissions.AllowAny()
-            ]
-
         return [
             IsAdminOrReadOnly()
         ]
@@ -126,7 +118,7 @@ class EventViewSet(viewsets.ModelViewSet):
             )
         )
 
-        # Public users see published events only
+        # Public users only see published events
         if not is_admin:
             qs = qs.filter(
                 is_published=True
@@ -166,65 +158,55 @@ class EventViewSet(viewsets.ModelViewSet):
                 ]
             )
 
+
+# ============================================================
+# PUBLIC EVENT REGISTRATION
+#
+# IMPORTANT:
+# This is a separate APIView.
+#
+# NO LOGIN REQUIRED.
+# ============================================================
+
+class EventRegisterView(APIView):
+
+    permission_classes = [
+        permissions.AllowAny
+    ]
+
+    authentication_classes = []
+
     # ========================================================
-    # PUBLIC EVENT REGISTRATION
-    #
-    # LOGIN NOT REQUIRED
+    # GET REGISTRATION STATUS
     # ========================================================
 
-    @action(
-        detail=True,
-        methods=["get", "post"],
-        permission_classes=[
-            permissions.AllowAny
-        ],
-        authentication_classes=[],
-    )
-    def register(
-        self,
-        request,
-        slug=None,
-    ):
+    def get(self, request, slug):
 
-        # ====================================================
-        # GET EVENT
-        # ====================================================
+        try:
 
-        event = self.get_object()
-
-        # ====================================================
-        # GET REGISTRATION STATUS
-        # ====================================================
-
-        if request.method == "GET":
-
-            if (
-                request.user
-                and request.user.is_authenticated
-            ):
-
-                registration = (
-                    event.registrations
-                    .filter(
-                        user=request.user
-                    )
-                    .first()
+            event = (
+                Event.objects
+                .prefetch_related("registrations")
+                .get(
+                    slug=slug,
+                    is_published=True,
                 )
+            )
 
-                return Response(
-                    {
-                        "registered": bool(
-                            registration
-                        ),
-                        "registration": (
-                            EventRegistrationSerializer(
-                                registration
-                            ).data
-                            if registration
-                            else None
-                        ),
-                    }
-                )
+        except Event.DoesNotExist:
+
+            return Response(
+                {
+                    "detail": "Event not found."
+                },
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        # Anonymous user
+        if not (
+            request.user
+            and request.user.is_authenticated
+        ):
 
             return Response(
                 {
@@ -233,27 +215,107 @@ class EventViewSet(viewsets.ModelViewSet):
                 }
             )
 
-        # ====================================================
-        # POST
-        # ====================================================
+        registration = (
+            event.registrations
+            .filter(
+                user=request.user
+            )
+            .first()
+        )
+
+        return Response(
+            {
+                "registered": bool(
+                    registration
+                ),
+
+                "registration": (
+                    EventRegistrationSerializer(
+                        registration
+                    ).data
+                    if registration
+                    else None
+                ),
+            }
+        )
+
+    # ========================================================
+    # POST REGISTRATION
+    # ========================================================
+
+    def post(self, request, slug):
+
+        # ----------------------------------------------------
+        # FIND EVENT
+        # ----------------------------------------------------
+
+        try:
+
+            event = (
+                Event.objects
+                .get(
+                    slug=slug,
+                    is_published=True,
+                )
+            )
+
+        except Event.DoesNotExist:
+
+            return Response(
+                {
+                    "detail": "Event not found."
+                },
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        # ----------------------------------------------------
+        # CHECK EVENT STATUS
+        # ----------------------------------------------------
+
+        if event.registration_status == "closed":
+
+            return Response(
+                {
+                    "detail":
+                        "Registration is closed for this event."
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        if event.registration_status == "past":
+
+            return Response(
+                {
+                    "detail":
+                        "This event has already ended."
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        # ----------------------------------------------------
+        # COPY REQUEST DATA
+        # ----------------------------------------------------
 
         data = request.data.copy()
 
-        # Always force event from URL
+        # Always use event from URL.
         data["event"] = event.pk
 
-        # ====================================================
-        # AUTHENTICATION CHECK
-        # ====================================================
+        # ----------------------------------------------------
+        # AUTHENTICATED USER
+        #
+        # Authentication is OPTIONAL.
+        # Anonymous users are allowed.
+        # ----------------------------------------------------
 
         is_authenticated = (
             request.user
             and request.user.is_authenticated
         )
 
-        # ====================================================
-        # LOGGED-IN USER
-        # ====================================================
+        # ----------------------------------------------------
+        # LOGGED-IN USER DATA
+        # ----------------------------------------------------
 
         if is_authenticated:
 
@@ -264,7 +326,7 @@ class EventViewSet(viewsets.ModelViewSet):
             )
 
             # ----------------------------------------------
-            # PROFILE DATA
+            # PROFILE
             # ----------------------------------------------
 
             if profile:
@@ -302,20 +364,6 @@ class EventViewSet(viewsets.ModelViewSet):
                 )
 
                 data.setdefault(
-                    "email",
-                    request.user.email,
-                )
-
-                data.setdefault(
-                    "phone",
-                    getattr(
-                        request.user,
-                        "phone",
-                        "",
-                    ),
-                )
-
-                data.setdefault(
                     "college",
                     getattr(
                         profile,
@@ -334,7 +382,7 @@ class EventViewSet(viewsets.ModelViewSet):
                 )
 
             # ----------------------------------------------
-            # USER FALLBACK
+            # USER
             # ----------------------------------------------
 
             data.setdefault(
@@ -347,9 +395,18 @@ class EventViewSet(viewsets.ModelViewSet):
                 request.user.email,
             )
 
-        # ====================================================
-        # SERIALIZE
-        # ====================================================
+            data.setdefault(
+                "phone",
+                getattr(
+                    request.user,
+                    "phone",
+                    "",
+                ),
+            )
+
+        # ----------------------------------------------------
+        # VALIDATE
+        # ----------------------------------------------------
 
         serializer = EventRegistrationSerializer(
             data=data
@@ -359,9 +416,9 @@ class EventViewSet(viewsets.ModelViewSet):
             raise_exception=True
         )
 
-        # ====================================================
+        # ----------------------------------------------------
         # SAVE
-        # ====================================================
+        # ----------------------------------------------------
 
         registration = serializer.save(
             user=(
@@ -371,9 +428,9 @@ class EventViewSet(viewsets.ModelViewSet):
             )
         )
 
-        # ====================================================
+        # ----------------------------------------------------
         # WAITLIST
-        # ====================================================
+        # ----------------------------------------------------
 
         if event.registration_status == "full":
 
@@ -385,9 +442,11 @@ class EventViewSet(viewsets.ModelViewSet):
                 ]
             )
 
-        # ====================================================
+        # ----------------------------------------------------
         # AWARD POINTS
-        # ====================================================
+        #
+        # Only logged-in members receive points.
+        # ----------------------------------------------------
 
         if is_authenticated:
 
@@ -406,9 +465,9 @@ class EventViewSet(viewsets.ModelViewSet):
                     f"Registered for {event.title}",
                 )
 
-        # ====================================================
+        # ----------------------------------------------------
         # RESPONSE
-        # ====================================================
+        # ----------------------------------------------------
 
         return Response(
             EventRegistrationSerializer(
@@ -428,6 +487,8 @@ class CertificatePrintView(APIView):
         permissions.AllowAny
     ]
 
+    authentication_classes = []
+
     def get(self, request, pk):
 
         try:
@@ -446,8 +507,6 @@ class CertificatePrintView(APIView):
                 },
                 status=status.HTTP_404_NOT_FOUND,
             )
-
-        from django.shortcuts import render
 
         return render(
             request,
@@ -740,6 +799,7 @@ class CertificateViewSet(
         return Response(
             {
                 "valid": True,
+
                 "certificate":
                     CertificateSerializer(
                         certificate
