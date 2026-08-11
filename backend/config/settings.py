@@ -360,13 +360,10 @@ FRONTEND_URL = os.environ.get(
 
 CORS_ALLOWED_ORIGINS = [
 
-    # Current Vercel deployment
-    "https://ecoclub-madgwlj3y-sriramarjun12345-7056s-projects.vercel.app",
+    # Stable production domain
+    "https://ecoclub-mauve.vercel.app",
 
-    # Previous Vercel deployment
-    "https://ecoclub-ls0kkyt21-sriramarjun12345-7056s-projects.vercel.app",
-
-    # Environment variable
+    # Environment variable (set this to your current deployment or stable domain)
     FRONTEND_URL,
 
     # Local development
@@ -378,6 +375,13 @@ CORS_ALLOWED_ORIGINS = [
 
     "http://localhost:3000",
     "http://127.0.0.1:3000",
+]
+
+
+# Matches every Vercel preview deployment for this project, e.g.
+# https://ecoclub-8pd80ljgy-sriramarjun12345-7056s-projects.vercel.app
+CORS_ALLOWED_ORIGIN_REGEXES = [
+    r"^https://ecoclub-[a-z0-9]+-sriramarjun12345-7056s-projects\.vercel\.app$",
 ]
 
 
@@ -413,14 +417,14 @@ CORS_ALLOW_HEADERS = [
 
 CSRF_TRUSTED_ORIGINS = [
 
-    # Current Vercel deployment
-    "https://ecoclub-madgwlj3y-sriramarjun12345-7056s-projects.vercel.app",
-
-    # Previous Vercel deployment
-    "https://ecoclub-ls0kkyt21-sriramarjun12345-7056s-projects.vercel.app",
+    # Stable production domain
+    "https://ecoclub-mauve.vercel.app",
 
     # Environment variable
     FRONTEND_URL,
+
+    # Any Vercel deployment for this project (wildcard subdomain, Django 4+)
+    "https://*.vercel.app",
 ]
 
 
