@@ -1,19 +1,16 @@
 from django.urls import include, path
 
-
 urlpatterns = [
     path(
         "auth/",
         include("apps.accounts.urls"),
     ),
-
     path(
-        "",
+        "events/",
         include("apps.events.urls"),
     ),
-
     path(
-        "",
+        "actions/",
         include("apps.actions.urls"),
     ),
 ]
