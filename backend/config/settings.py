@@ -1,3 +1,4 @@
+
 """
 Django settings for the ECO CLUB platform.
 """
@@ -75,7 +76,6 @@ INSTALLED_APPS = [
 
 MIDDLEWARE = [
 
-    # CORS should be near the top
     "corsheaders.middleware.CorsMiddleware",
 
     "django.middleware.security.SecurityMiddleware",
@@ -140,7 +140,6 @@ TEMPLATES = [
 # ============================================================
 
 DATABASE_URL = os.environ.get("DATABASE_URL")
-
 
 if DATABASE_URL:
 
@@ -273,7 +272,7 @@ DEFAULT_AUTO_FIELD = (
 REST_FRAMEWORK = {
 
     # --------------------------------------------------------
-    # JWT authentication
+    # JWT Authentication
     # --------------------------------------------------------
 
     "DEFAULT_AUTHENTICATION_CLASSES": (
@@ -282,10 +281,7 @@ REST_FRAMEWORK = {
     ),
 
     # --------------------------------------------------------
-    # Default API permission
-    #
-    # Public endpoints can override this with AllowAny.
-    # Event registration does exactly that.
+    # Default permissions
     # --------------------------------------------------------
 
     "DEFAULT_PERMISSION_CLASSES": (
@@ -325,6 +321,7 @@ REST_FRAMEWORK = {
 
 SIMPLE_JWT = {
 
+    # Access token
     "ACCESS_TOKEN_LIFETIME": timedelta(
         minutes=int(
             os.environ.get(
@@ -334,6 +331,7 @@ SIMPLE_JWT = {
         )
     ),
 
+    # Refresh token
     "REFRESH_TOKEN_LIFETIME": timedelta(
         days=int(
             os.environ.get(
@@ -343,13 +341,25 @@ SIMPLE_JWT = {
         )
     ),
 
-    "ROTATE_REFRESH_TOKENS": True,
+    # IMPORTANT:
+    # Keep these False because the frontend stores
+    # one refresh token and reuses it.
+    "ROTATE_REFRESH_TOKENS": False,
 
-    "BLACKLIST_AFTER_ROTATION": True,
+    "BLACKLIST_AFTER_ROTATION": False,
 
+    # Authorization header
     "AUTH_HEADER_TYPES": (
         "Bearer",
     ),
+
+    # Optional explicit user ID claim
+    "USER_ID_FIELD": "id",
+
+    "USER_ID_CLAIM": "user_id",
+
+    # Do not allow empty authentication
+    "UPDATE_LAST_LOGIN": False,
 }
 
 
@@ -435,3 +445,4 @@ DATA_UPLOAD_MAX_MEMORY_SIZE = (
 FILE_UPLOAD_MAX_MEMORY_SIZE = (
     5 * 1024 * 1024
 )
+

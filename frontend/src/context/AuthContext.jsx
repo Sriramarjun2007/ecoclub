@@ -1,3 +1,4 @@
+
 import React, {
   createContext,
   useContext,
@@ -8,65 +9,133 @@ import React, {
 import api, {
   ACCESS_KEY,
   REFRESH_KEY,
+  USER_KEY,
 } from '../lib/api'
 
-const USER_KEY = 'ecoclub_user'
+// ============================================================
+// AUTH CONTEXT
+// ============================================================
 
 const AuthContext = createContext(null)
+
+// ============================================================
+// PROVIDER
+// ============================================================
 
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null)
   const [loading, setLoading] = useState(true)
 
-  /*
-  |--------------------------------------------------------------------------
-  | Load logged-in user
-  |--------------------------------------------------------------------------
-  */
-  const loadUser = async () => {
-    const accessToken =
-      localStorage.getItem(ACCESS_KEY)
+  // ==========================================================
+  // SAVE USER
+  // ==========================================================
 
-    if (!accessToken) {
-      setUser(null)
-      setLoading(false)
-      return
-    }
+  const saveUser = (userData) => {
+    setUser(userData)
 
-    try {
-      const response = await api.get('/auth/me/')
-
-      const userData = response.data
-
-      setUser(userData)
-
+    if (userData) {
       localStorage.setItem(
         USER_KEY,
         JSON.stringify(userData)
       )
+    } else {
+      localStorage.removeItem(USER_KEY)
+    }
+  }
+
+  // ==========================================================
+  // LOAD USER
+  // ==========================================================
+
+  const loadUser = async () => {
+    const accessToken =
+      localStorage.getItem(ACCESS_KEY)
+
+    const refreshToken =
+      localStorage.getItem(REFRESH_KEY)
+
+    // --------------------------------------------------------
+    // No tokens = logged out
+    // --------------------------------------------------------
+
+    if (!accessToken && !refreshToken) {
+      saveUser(null)
+      setLoading(false)
+      return
+    }
+
+    // --------------------------------------------------------
+    // Try /auth/me/
+    //
+    // api.js automatically:
+    // Authorization: Bearer <access_token>
+    //
+    // If access token expired, api.js attempts refresh.
+    // --------------------------------------------------------
+
+    try {
+      const response =
+        await api.get('/auth/me/')
+
+      const userData =
+        response.data
+
+      console.log(
+        'AUTH RESTORED:',
+        userData
+      )
+
+      saveUser(userData)
 
     } catch (error) {
       console.error(
-        'GET /auth/me/ failed:',
-        error.response?.data || error
+        'Auth restore failed:',
+        error?.response?.data || error
       )
 
-      /*
-      |--------------------------------------------------------------------------
-      | Try cached user only if available
-      |--------------------------------------------------------------------------
-      */
-      const cachedUser =
-        localStorage.getItem(USER_KEY)
+      // ------------------------------------------------------
+      // Do NOT trust cached user when JWT authentication
+      // failed with an invalid/expired token.
+      // ------------------------------------------------------
 
-      if (cachedUser) {
-        try {
-          setUser(JSON.parse(cachedUser))
-        } catch {
+      if (
+        error?.response?.status === 401
+      ) {
+        localStorage.removeItem(
+          ACCESS_KEY
+        )
+
+        localStorage.removeItem(
+          REFRESH_KEY
+        )
+
+        localStorage.removeItem(
+          USER_KEY
+        )
+
+        setUser(null)
+
+      } else {
+        // ----------------------------------------------------
+        // Network/server error.
+        //
+        // Keep cached user temporarily if available.
+        // ----------------------------------------------------
+
+        const cachedUser =
+          localStorage.getItem(USER_KEY)
+
+        if (cachedUser) {
+          try {
+            setUser(
+              JSON.parse(cachedUser)
+            )
+          } catch {
+            setUser(null)
+          }
+        } else {
           setUser(null)
         }
-      } else {
-        setUser(null)
       }
 
     } finally {
@@ -74,33 +143,57 @@ export function AuthProvider({ children }) {
     }
   }
 
-  /*
-  |--------------------------------------------------------------------------
-  | Initial authentication
-  |--------------------------------------------------------------------------
-  */
+  // ==========================================================
+  // INITIAL AUTH RESTORE
+  // ==========================================================
+
   useEffect(() => {
-    loadUser()
+    let mounted = true
+
+    const restore = async () => {
+      if (!mounted) {
+        return
+      }
+
+      await loadUser()
+    }
+
+    restore()
+
+    return () => {
+      mounted = false
+    }
   }, [])
 
-  /*
-  |--------------------------------------------------------------------------
-  | LOGIN
-  |--------------------------------------------------------------------------
-  */
-  const login = async (username, password) => {
-    const response = await api.post(
-      '/auth/login/',
-      {
-        username,
-        password,
-      }
-    )
+  // ==========================================================
+  // LOGIN
+  // ==========================================================
+
+  const login = async (
+    username,
+    password
+  ) => {
+    // --------------------------------------------------------
+    // Login request
+    // --------------------------------------------------------
+
+    const response =
+      await api.post(
+        '/auth/login/',
+        {
+          username,
+          password,
+        }
+      )
 
     console.log(
       'LOGIN RESPONSE:',
       response.data
     )
+
+    // --------------------------------------------------------
+    // Get JWT tokens
+    // --------------------------------------------------------
 
     const access =
       response.data?.access
@@ -108,18 +201,23 @@ export function AuthProvider({ children }) {
     const refresh =
       response.data?.refresh
 
-    if (!access || !refresh) {
+    if (!access) {
       throw new Error(
-        'Login response did not contain JWT tokens.'
+        'Login response did not contain an access token.'
       )
     }
 
-    /*
-    |--------------------------------------------------------------------------
-    | VERY IMPORTANT
-    |--------------------------------------------------------------------------
-    | Save tokens BEFORE calling /auth/me/
-    */
+    if (!refresh) {
+      throw new Error(
+        'Login response did not contain a refresh token.'
+      )
+    }
+
+    // --------------------------------------------------------
+    // IMPORTANT:
+    // Save tokens BEFORE /auth/me/
+    // --------------------------------------------------------
+
     localStorage.setItem(
       ACCESS_KEY,
       access
@@ -130,11 +228,10 @@ export function AuthProvider({ children }) {
       refresh
     )
 
-    /*
-    |--------------------------------------------------------------------------
-    | Get current user
-    |--------------------------------------------------------------------------
-    */
+    // --------------------------------------------------------
+    // Verify authenticated user
+    // --------------------------------------------------------
+
     try {
       const meResponse =
         await api.get('/auth/me/')
@@ -142,48 +239,71 @@ export function AuthProvider({ children }) {
       const userData =
         meResponse.data
 
-      setUser(userData)
-
-      localStorage.setItem(
-        USER_KEY,
-        JSON.stringify(userData)
+      console.log(
+        'AUTH ME RESPONSE:',
+        userData
       )
+
+      saveUser(userData)
 
       return userData
 
     } catch (error) {
       console.error(
-        'GET /auth/me/ after login failed:',
-        error.response?.data || error
+        'Auth /me failed after login:',
+        error?.response?.data || error
       )
 
-      /*
-      |--------------------------------------------------------------------------
-      | Do NOT immediately delete valid JWTs here.
-      |--------------------------------------------------------------------------
-      */
+      // ------------------------------------------------------
+      // Do NOT keep a broken authentication state.
+      // ------------------------------------------------------
+
+      if (
+        error?.response?.status === 401
+      ) {
+        localStorage.removeItem(
+          ACCESS_KEY
+        )
+
+        localStorage.removeItem(
+          REFRESH_KEY
+        )
+
+        localStorage.removeItem(
+          USER_KEY
+        )
+
+        setUser(null)
+      }
+
       throw error
     }
   }
 
-  /*
-  |--------------------------------------------------------------------------
-  | LOGOUT
-  |--------------------------------------------------------------------------
-  */
+  // ==========================================================
+  // LOGOUT
+  // ==========================================================
+
   const logout = () => {
-    localStorage.removeItem(ACCESS_KEY)
-    localStorage.removeItem(REFRESH_KEY)
-    localStorage.removeItem(USER_KEY)
+    localStorage.removeItem(
+      ACCESS_KEY
+    )
+
+    localStorage.removeItem(
+      REFRESH_KEY
+    )
+
+    localStorage.removeItem(
+      USER_KEY
+    )
 
     setUser(null)
   }
 
-  /*
-  |--------------------------------------------------------------------------
-  | REFRESH USER
-  |--------------------------------------------------------------------------
-  */
+  // ==========================================================
+  // REFRESH USER
+  // ==========================================================
+
   const refreshUser = async () => {
     try {
       const response =
@@ -192,24 +312,29 @@ export function AuthProvider({ children }) {
       const userData =
         response.data
 
-      setUser(userData)
-
-      localStorage.setItem(
-        USER_KEY,
-        JSON.stringify(userData)
-      )
+      saveUser(userData)
 
       return userData
 
     } catch (error) {
       console.error(
         'refreshUser error:',
-        error.response?.data || error
+        error?.response?.data || error
       )
+
+      if (
+        error?.response?.status === 401
+      ) {
+        logout()
+      }
 
       throw error
     }
   }
+
+  // ==========================================================
+  // CONTEXT
+  // ==========================================================
 
   return (
     <AuthContext.Provider
@@ -227,6 +352,10 @@ export function AuthProvider({ children }) {
   )
 }
 
+// ============================================================
+// HOOK
+// ============================================================
+
 export function useAuth() {
   const context =
     useContext(AuthContext)
@@ -239,3 +368,4 @@ export function useAuth() {
 
   return context
 }
+
