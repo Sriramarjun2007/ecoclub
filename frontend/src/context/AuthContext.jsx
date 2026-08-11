@@ -1,3 +1,4 @@
+
 import React, {
   createContext,
   useContext,
@@ -9,6 +10,9 @@ import api from '../lib/api'
 
 const AuthContext = createContext(null)
 
+const ACCESS_KEY = 'access'
+const REFRESH_KEY = 'refresh'
+
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null)
   const [loading, setLoading] = useState(true)
@@ -18,54 +22,82 @@ export function AuthProvider({ children }) {
   // ============================================================
 
   useEffect(() => {
-    const token = localStorage.getItem('access')
+    const restoreSession = async () => {
+      const access = localStorage.getItem(
+        ACCESS_KEY
+      )
 
-    if (!token) {
-      setLoading(false)
-      return
-    }
+      const refresh = localStorage.getItem(
+        REFRESH_KEY
+      )
 
-    api
-      .get('/auth/me/')
-      .then((r) => {
-        setUser(r.data)
-      })
-      .catch((error) => {
+      // No tokens
+      if (!access && !refresh) {
+        setLoading(false)
+        return
+      }
+
+      try {
+        const response = await api.get(
+          '/auth/me/'
+        )
+
+        setUser(response.data)
+
+      } catch (error) {
         console.error(
           'Auth restore failed:',
           error.response?.data || error
         )
 
-        localStorage.removeItem('access')
-        localStorage.removeItem('refresh')
+        localStorage.removeItem(
+          ACCESS_KEY
+        )
+
+        localStorage.removeItem(
+          REFRESH_KEY
+        )
+
         setUser(null)
-      })
-      .finally(() => {
+
+      } finally {
         setLoading(false)
-      })
+      }
+    }
+
+    restoreSession()
   }, [])
 
   // ============================================================
   // LOGIN
   // ============================================================
 
-  const login = async (username, password) => {
-    const r = await api.post('/auth/login/', {
-      username,
-      password,
-    })
+  const login = async (
+    username,
+    password
+  ) => {
+    const response = await api.post(
+      '/auth/login/',
+      {
+        username,
+        password,
+      }
+    )
 
-    console.log('LOGIN RESPONSE:', r.data)
+    console.log(
+      'LOGIN RESPONSE:',
+      response.data
+    )
 
     // ----------------------------------------------------------
-    // Support both:
+    // Support:
     //
     // {
     //   access: "...",
     //   refresh: "..."
     // }
     //
-    // and:
+    // OR:
     //
     // {
     //   tokens: {
@@ -76,17 +108,17 @@ export function AuthProvider({ children }) {
     // ----------------------------------------------------------
 
     const access =
-      r.data?.access ||
-      r.data?.tokens?.access
+      response.data?.access ||
+      response.data?.tokens?.access
 
     const refresh =
-      r.data?.refresh ||
-      r.data?.tokens?.refresh
+      response.data?.refresh ||
+      response.data?.tokens?.refresh
 
     if (!access) {
       console.error(
-        'Login succeeded but no access token was returned:',
-        r.data
+        'No access token returned:',
+        response.data
       )
 
       throw new Error(
@@ -95,26 +127,37 @@ export function AuthProvider({ children }) {
     }
 
     // ----------------------------------------------------------
-    // SAVE TOKENS
+    // SAVE ACCESS TOKEN
     // ----------------------------------------------------------
 
     localStorage.setItem(
-      'access',
+      ACCESS_KEY,
       access
     )
 
+    // ----------------------------------------------------------
+    // SAVE REFRESH TOKEN
+    // ----------------------------------------------------------
+
     if (refresh) {
       localStorage.setItem(
-        'refresh',
+        REFRESH_KEY,
         refresh
       )
     }
 
     // ----------------------------------------------------------
-    // GET CURRENT USER
+    // Verify authenticated user
     // ----------------------------------------------------------
 
-    const me = await api.get('/auth/me/')
+    const me = await api.get(
+      '/auth/me/'
+    )
+
+    console.log(
+      'AUTHENTICATED USER:',
+      me.data
+    )
 
     setUser(me.data)
 
@@ -127,7 +170,9 @@ export function AuthProvider({ children }) {
 
   const logout = async () => {
     const refresh =
-      localStorage.getItem('refresh')
+      localStorage.getItem(
+        REFRESH_KEY
+      )
 
     try {
       if (refresh) {
@@ -145,8 +190,13 @@ export function AuthProvider({ children }) {
       )
     }
 
-    localStorage.removeItem('access')
-    localStorage.removeItem('refresh')
+    localStorage.removeItem(
+      ACCESS_KEY
+    )
+
+    localStorage.removeItem(
+      REFRESH_KEY
+    )
 
     setUser(null)
   }
@@ -184,5 +234,10 @@ export function AuthProvider({ children }) {
   )
 }
 
+// ============================================================
+// HOOK
+// ============================================================
+
 export const useAuth = () =>
   useContext(AuthContext)
+

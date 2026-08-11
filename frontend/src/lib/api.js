@@ -1,7 +1,11 @@
 
 import axios from 'axios'
 
-const API_URL = import.meta.env.VITE_API_URL || '/api'
+const API_URL =
+  import.meta.env.VITE_API_URL || '/api'
+
+const ACCESS_KEY = 'access'
+const REFRESH_KEY = 'refresh'
 
 const api = axios.create({
   baseURL: API_URL,
@@ -10,12 +14,16 @@ const api = axios.create({
   },
 })
 
-// Attach JWT access token
+// ============================================================
+// ATTACH JWT ACCESS TOKEN
+// ============================================================
+
 api.interceptors.request.use(
   (config) => {
-    const token = localStorage.getItem('access')
+    const token = localStorage.getItem(ACCESS_KEY)
 
     if (token) {
+      config.headers = config.headers || {}
       config.headers.Authorization = `Bearer ${token}`
     }
 
@@ -24,45 +32,91 @@ api.interceptors.request.use(
   (error) => Promise.reject(error)
 )
 
-// Prevent multiple refresh requests
+// ============================================================
+// PREVENT MULTIPLE REFRESH REQUESTS
+// ============================================================
+
 let refreshing = null
 
-// Auto-refresh access token when expired
+// ============================================================
+// AUTO REFRESH ACCESS TOKEN
+// ============================================================
+
 api.interceptors.response.use(
   (response) => response,
 
   async (error) => {
     const original = error.config
 
-    const refresh = localStorage.getItem('refresh')
+    // --------------------------------------------------------
+    // Only handle 401
+    // --------------------------------------------------------
 
-    // No response / no refresh token
     if (
       error.response?.status !== 401 ||
-      !refresh ||
-      original?._retry
+      !original ||
+      original._retry
     ) {
+      return Promise.reject(error)
+    }
+
+    const refresh = localStorage.getItem(REFRESH_KEY)
+
+    // --------------------------------------------------------
+    // No refresh token
+    // --------------------------------------------------------
+
+    if (!refresh) {
+      localStorage.removeItem(ACCESS_KEY)
+      localStorage.removeItem(REFRESH_KEY)
+
       return Promise.reject(error)
     }
 
     original._retry = true
 
     try {
-      // If another request is already refreshing, wait for it
+      // ------------------------------------------------------
+      // If another request is already refreshing,
+      // wait for that request.
+      // ------------------------------------------------------
+
       refreshing =
         refreshing ||
         axios
-          .post(`${API_URL}/auth/token/refresh/`, {
-            refresh,
-          })
+          .post(
+            `${API_URL}/auth/token/refresh/`,
+            {
+              refresh,
+            },
+            {
+              headers: {
+                'Content-Type': 'application/json',
+              },
+            }
+          )
           .then((response) => {
-            const newAccess = response.data.access
+            const newAccess =
+              response.data.access
 
-            localStorage.setItem('access', newAccess)
+            if (!newAccess) {
+              throw new Error(
+                'No access token returned from refresh endpoint'
+              )
+            }
 
-            // Some JWT configurations rotate the refresh token
+            localStorage.setItem(
+              ACCESS_KEY,
+              newAccess
+            )
+
+            // Some JWT configurations rotate
+            // the refresh token.
             if (response.data.refresh) {
-              localStorage.setItem('refresh', response.data.refresh)
+              localStorage.setItem(
+                REFRESH_KEY,
+                response.data.refresh
+              )
             }
 
             return newAccess
@@ -71,19 +125,53 @@ api.interceptors.response.use(
             refreshing = null
           })
 
-      const newAccessToken = await refreshing
+      const newAccessToken =
+        await refreshing
 
-      original.headers = original.headers || {}
-      original.headers.Authorization = `Bearer ${newAccessToken}`
+      // ------------------------------------------------------
+      // Retry original request
+      // ------------------------------------------------------
+
+      original.headers =
+        original.headers || {}
+
+      original.headers.Authorization =
+        `Bearer ${newAccessToken}`
 
       return api(original)
+
     } catch (refreshError) {
-      localStorage.removeItem('access')
-      localStorage.removeItem('refresh')
 
-      window.location.href = '/login'
+      // ------------------------------------------------------
+      // Refresh failed → logout
+      // ------------------------------------------------------
 
-      return Promise.reject(refreshError)
+      localStorage.removeItem(
+        ACCESS_KEY
+      )
+
+      localStorage.removeItem(
+        REFRESH_KEY
+      )
+
+      localStorage.removeItem(
+        'user'
+      )
+
+      localStorage.removeItem(
+        'cb_access'
+      )
+
+      localStorage.removeItem(
+        'cb_refresh'
+      )
+
+      window.location.href =
+        '/login'
+
+      return Promise.reject(
+        refreshError
+      )
     }
   }
 )
