@@ -1,3 +1,4 @@
+
 import React, { useEffect, useRef, useState } from 'react'
 import { useInView, animate } from 'framer-motion'
 
@@ -14,11 +15,9 @@ import {
 
 // ============================================================
 // IMPACT META
-// Technical ECO CLUB
 // ============================================================
 
 export const META = {
-  // Technical Projects
   trees: {
     icon: FiCode,
     label: 'Technical Projects',
@@ -26,7 +25,6 @@ export const META = {
     suffix: '+',
   },
 
-  // Technical Workshops
   waste: {
     icon: FiTool,
     label: 'Technical Workshops',
@@ -34,7 +32,6 @@ export const META = {
     suffix: '+',
   },
 
-  // AI / Innovation Projects
   water: {
     icon: FiCpu,
     label: 'AI & Innovation Projects',
@@ -42,7 +39,6 @@ export const META = {
     suffix: '+',
   },
 
-  // Volunteers
   volunteers: {
     icon: FiUsers,
     label: 'Active Volunteers',
@@ -50,7 +46,6 @@ export const META = {
     suffix: '+',
   },
 
-  // Students
   students: {
     icon: FiActivity,
     label: 'Students Engaged',
@@ -58,7 +53,6 @@ export const META = {
     suffix: '+',
   },
 
-  // Awareness
   campaigns: {
     icon: FiRadio,
     label: 'Tech Awareness Campaigns',
@@ -66,7 +60,6 @@ export const META = {
     suffix: '+',
   },
 
-  // Events
   events: {
     icon: FiCalendar,
     label: 'Technical Events',
@@ -74,7 +67,6 @@ export const META = {
     suffix: '+',
   },
 
-  // Members
   members: {
     icon: FiUserPlus,
     label: 'ECO CLUB Members',
@@ -109,20 +101,37 @@ export function StatCounter({
 
     const numericValue = Number(value) || 0
 
-    const controls = animate(0, numericValue, {
-      duration,
-      ease: 'easeOut',
+    const controls = animate(
+      0,
+      numericValue,
+      {
+        duration,
+        ease: 'easeOut',
 
-      onUpdate: (v) => {
-        setDisplay(Math.round(v))
-      },
-    })
+        onUpdate: (v) => {
+          setDisplay(Math.round(v))
+        },
+      }
+    )
 
     return () => controls.stop()
   }, [inView, value, duration])
 
+  // ==========================================================
+  // IMPORTANT
+  // Prevent strings/emojis from being rendered as components.
+  // ==========================================================
+
+  const SafeIcon =
+    typeof Icon === 'function'
+      ? Icon
+      : FiCode
+
   return (
-    <div ref={ref} className="text-center">
+    <div
+      ref={ref}
+      className="text-center"
+    >
       {/* ICON */}
 
       <div
@@ -137,7 +146,7 @@ export function StatCounter({
           ${color}
         `}
       >
-        {Icon && <Icon className="w-6 h-6" />}
+        <SafeIcon className="w-6 h-6" />
       </div>
 
       {/* NUMBER */}
@@ -161,20 +170,30 @@ export function StatCounter({
 // ============================================================
 
 export function ImpactCard({ item }) {
-  const meta = META[item.metric] || {
+  const metric = String(
+    item?.metric || ''
+  ).toLowerCase()
+
+  const meta = META[metric] || {
     icon: FiCode,
-    label: item.metric,
+    label: item?.metric || 'Impact',
     color: 'text-emerald-600 bg-emerald-100',
     suffix: '',
   }
 
   return (
     <StatCounter
-      value={Number(item.value) || 0}
-      label={item.label || meta.label}
+      value={Number(item?.value) || 0}
+      label={item?.label || meta.label}
       icon={meta.icon}
       color={meta.color}
-      suffix={item.suffix ?? meta.suffix}
+      suffix={
+        item?.suffix !== undefined &&
+        item?.suffix !== null
+          ? item.suffix
+          : meta.suffix
+      }
     />
   )
 }
+
