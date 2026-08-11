@@ -1,4 +1,3 @@
-
 from django.contrib import admin
 
 from .models import (
@@ -27,6 +26,16 @@ class SDGActivityInline(admin.TabularInline):
 
 @admin.register(SDG)
 class SDGAdmin(admin.ModelAdmin):
+    list_display = (
+        "id",
+        "name",
+    )
+
+    search_fields = (
+        "name",
+        "description",
+    )
+
     inlines = [SDGActivityInline]
 
 
@@ -36,6 +45,15 @@ class SDGAdmin(admin.ModelAdmin):
 
 @admin.register(GalleryCategory)
 class GalleryCategoryAdmin(admin.ModelAdmin):
+    list_display = (
+        "name",
+        "slug",
+    )
+
+    search_fields = (
+        "name",
+    )
+
     prepopulated_fields = {
         "slug": ("name",)
     }
@@ -63,6 +81,10 @@ class GalleryImageAdmin(admin.ModelAdmin):
         "caption",
     )
 
+    ordering = (
+        "-uploaded_at",
+    )
+
 
 # ============================================================
 # MEMORY
@@ -80,6 +102,14 @@ class MemoryAdmin(admin.ModelAdmin):
     list_filter = (
         "is_highlight",
         "year",
+    )
+
+    search_fields = (
+        "title",
+    )
+
+    ordering = (
+        "-year",
     )
 
 
@@ -101,6 +131,10 @@ class TeamMemberAdmin(admin.ModelAdmin):
         "role",
         "position",
         "department",
+    )
+
+    ordering = (
+        "name",
     )
 
 
@@ -127,6 +161,10 @@ class AnnouncementAdmin(admin.ModelAdmin):
     search_fields = (
         "title",
         "body",
+    )
+
+    ordering = (
+        "-created_at",
     )
 
 
@@ -158,6 +196,10 @@ class BlogPostAdmin(admin.ModelAdmin):
     prepopulated_fields = {
         "slug": ("title",)
     }
+
+    ordering = (
+        "-created_at",
+    )
 
 
 # ============================================================
@@ -191,6 +233,14 @@ class ContactMessageAdmin(admin.ModelAdmin):
         "-created_at",
     )
 
+    readonly_fields = (
+        "created_at",
+    )
+
+    list_editable = (
+        "is_read",
+    )
+
 
 # ============================================================
 # IMPACT STATISTICS
@@ -199,6 +249,12 @@ class ContactMessageAdmin(admin.ModelAdmin):
 @admin.register(ImpactStatistic)
 class ImpactStatisticAdmin(admin.ModelAdmin):
     list_display = (
+        "metric",
+        "value",
+        "unit",
+    )
+
+    search_fields = (
         "metric",
         "value",
         "unit",
@@ -220,4 +276,9 @@ class WebsiteSettingAdmin(admin.ModelAdmin):
     search_fields = (
         "key",
         "label",
+        "value",
+    )
+
+    ordering = (
+        "key",
     )

@@ -12,14 +12,12 @@ import {
   FiUserPlus,
 } from 'react-icons/fi'
 
-
 // ============================================================
 // IMPACT META
 // Technical ECO CLUB
 // ============================================================
 
 export const META = {
-
   // Technical Projects
   trees: {
     icon: FiCode,
@@ -85,7 +83,6 @@ export const META = {
   },
 }
 
-
 // ============================================================
 // STAT COUNTER
 // ============================================================
@@ -98,7 +95,6 @@ export function StatCounter({
   suffix = '',
   duration = 1.6,
 }) {
-
   const ref = useRef(null)
 
   const inView = useInView(ref, {
@@ -108,38 +104,25 @@ export function StatCounter({
 
   const [display, setDisplay] = useState(0)
 
-
   useEffect(() => {
-
     if (!inView) return
 
     const numericValue = Number(value) || 0
 
-    const controls = animate(
-      0,
-      numericValue,
-      {
-        duration,
-        ease: 'easeOut',
+    const controls = animate(0, numericValue, {
+      duration,
+      ease: 'easeOut',
 
-        onUpdate: (v) => {
-          setDisplay(Math.round(v))
-        },
-      }
-    )
+      onUpdate: (v) => {
+        setDisplay(Math.round(v))
+      },
+    })
 
     return () => controls.stop()
-
   }, [inView, value, duration])
 
-
   return (
-
-    <div
-      ref={ref}
-      className="text-center"
-    >
-
+    <div ref={ref} className="text-center">
       {/* ICON */}
 
       <div
@@ -154,44 +137,30 @@ export function StatCounter({
           ${color}
         `}
       >
-
-        {Icon && (
-          <Icon className="w-6 h-6" />
-        )}
-
+        {Icon && <Icon className="w-6 h-6" />}
       </div>
-
 
       {/* NUMBER */}
 
       <div className="text-2xl font-bold text-gray-900">
-
         {display.toLocaleString()}
-
         {suffix}
-
       </div>
-
 
       {/* LABEL */}
 
       <div className="text-sm text-gray-600 mt-1">
-
         {label}
-
       </div>
-
     </div>
   )
 }
-
 
 // ============================================================
 // IMPACT CARD
 // ============================================================
 
 export function ImpactCard({ item }) {
-
   const meta = META[item.metric] || {
     icon: FiCode,
     label: item.metric,
@@ -199,9 +168,7 @@ export function ImpactCard({ item }) {
     suffix: '',
   }
 
-
   return (
-
     <StatCounter
       value={Number(item.value) || 0}
       label={item.label || meta.label}
@@ -209,6 +176,5 @@ export function ImpactCard({ item }) {
       color={meta.color}
       suffix={item.suffix ?? meta.suffix}
     />
-
   )
 }
