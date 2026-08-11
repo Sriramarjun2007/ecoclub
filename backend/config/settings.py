@@ -1,4 +1,3 @@
-
 """
 Django settings for the ECO CLUB platform.
 """
@@ -76,6 +75,7 @@ INSTALLED_APPS = [
 
 MIDDLEWARE = [
 
+    # CORS must be near the top
     "corsheaders.middleware.CorsMiddleware",
 
     "django.middleware.security.SecurityMiddleware",
@@ -271,28 +271,19 @@ DEFAULT_AUTO_FIELD = (
 
 REST_FRAMEWORK = {
 
-    # --------------------------------------------------------
     # JWT Authentication
-    # --------------------------------------------------------
-
     "DEFAULT_AUTHENTICATION_CLASSES": (
         "rest_framework_simplejwt.authentication."
         "JWTAuthentication",
     ),
 
-    # --------------------------------------------------------
     # Default permissions
-    # --------------------------------------------------------
-
     "DEFAULT_PERMISSION_CLASSES": (
         "rest_framework.permissions."
         "IsAuthenticatedOrReadOnly",
     ),
 
-    # --------------------------------------------------------
     # Filters
-    # --------------------------------------------------------
-
     "DEFAULT_FILTER_BACKENDS": (
         "django_filters.rest_framework."
         "DjangoFilterBackend",
@@ -302,10 +293,7 @@ REST_FRAMEWORK = {
         "rest_framework.filters.OrderingFilter",
     ),
 
-    # --------------------------------------------------------
     # Pagination
-    # --------------------------------------------------------
-
     "DEFAULT_PAGINATION_CLASS": (
         "rest_framework.pagination."
         "PageNumberPagination"
@@ -321,7 +309,7 @@ REST_FRAMEWORK = {
 
 SIMPLE_JWT = {
 
-    # Access token
+    # Access token lifetime
     "ACCESS_TOKEN_LIFETIME": timedelta(
         minutes=int(
             os.environ.get(
@@ -331,7 +319,7 @@ SIMPLE_JWT = {
         )
     ),
 
-    # Refresh token
+    # Refresh token lifetime
     "REFRESH_TOKEN_LIFETIME": timedelta(
         days=int(
             os.environ.get(
@@ -341,9 +329,7 @@ SIMPLE_JWT = {
         )
     ),
 
-    # IMPORTANT:
-    # Keep these False because the frontend stores
-    # one refresh token and reuses it.
+    # Keep refresh token reusable
     "ROTATE_REFRESH_TOKENS": False,
 
     "BLACKLIST_AFTER_ROTATION": False,
@@ -353,12 +339,11 @@ SIMPLE_JWT = {
         "Bearer",
     ),
 
-    # Optional explicit user ID claim
+    # User identification
     "USER_ID_FIELD": "id",
 
     "USER_ID_CLAIM": "user_id",
 
-    # Do not allow empty authentication
     "UPDATE_LAST_LOGIN": False,
 }
 
@@ -369,17 +354,20 @@ SIMPLE_JWT = {
 
 FRONTEND_URL = os.environ.get(
     "FRONTEND_URL",
-    "http://localhost:5173",
+    "https://ecoclub-madgwlj3y-sriramarjun12345-7056s-projects.vercel.app",
 ).rstrip("/")
 
 
 CORS_ALLOWED_ORIGINS = [
 
-    # Production frontend
-    FRONTEND_URL,
-
     # Current Vercel deployment
+    "https://ecoclub-madgwlj3y-sriramarjun12345-7056s-projects.vercel.app",
+
+    # Previous Vercel deployment
     "https://ecoclub-ls0kkyt21-sriramarjun12345-7056s-projects.vercel.app",
+
+    # Environment variable
+    FRONTEND_URL,
 
     # Local development
     "http://localhost:5173",
@@ -396,17 +384,43 @@ CORS_ALLOWED_ORIGINS = [
 CORS_ALLOW_CREDENTIALS = True
 
 
+CORS_ALLOW_METHODS = [
+    "DELETE",
+    "GET",
+    "OPTIONS",
+    "PATCH",
+    "POST",
+    "PUT",
+]
+
+
+CORS_ALLOW_HEADERS = [
+    "accept",
+    "accept-encoding",
+    "authorization",
+    "content-type",
+    "dnt",
+    "origin",
+    "user-agent",
+    "x-csrftoken",
+    "x-requested-with",
+]
+
+
 # ============================================================
 # CSRF
 # ============================================================
 
 CSRF_TRUSTED_ORIGINS = [
 
-    # Production frontend
-    FRONTEND_URL,
-
     # Current Vercel deployment
+    "https://ecoclub-madgwlj3y-sriramarjun12345-7056s-projects.vercel.app",
+
+    # Previous Vercel deployment
     "https://ecoclub-ls0kkyt21-sriramarjun12345-7056s-projects.vercel.app",
+
+    # Environment variable
+    FRONTEND_URL,
 ]
 
 
@@ -445,4 +459,3 @@ DATA_UPLOAD_MAX_MEMORY_SIZE = (
 FILE_UPLOAD_MAX_MEMORY_SIZE = (
     5 * 1024 * 1024
 )
-
