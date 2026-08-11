@@ -10,29 +10,56 @@ from .views import (
     RegistrationViewSet,
 )
 
+
 app_name = "events"
 
-# 1. Instantiate and populate the router FIRST
-router = DefaultRouter()
-router.register(r"", EventViewSet, basename="event")
-router.register(r"registrations", RegistrationViewSet, basename="registration")
-router.register(r"participants", ParticipantViewSet, basename="participant")
-router.register(r"certificates", CertificateViewSet, basename="certificate")
 
-# 2. Define URL patterns
+router = DefaultRouter()
+
+router.register(
+    r"events",
+    EventViewSet,
+    basename="event",
+)
+
+router.register(
+    r"registrations",
+    RegistrationViewSet,
+    basename="registration",
+)
+
+router.register(
+    r"participants",
+    ParticipantViewSet,
+    basename="participant",
+)
+
+router.register(
+    r"certificates",
+    CertificateViewSet,
+    basename="certificate",
+)
+
+
 urlpatterns = [
-    # Custom non-router action endpoints
+
+    # Public event registration
     path(
-        "<slug:slug>/register/",
+        "events/<slug:slug>/register/",
         EventRegisterView.as_view(),
         name="event-register",
     ),
+
+    # Certificate print
     path(
         "certificates/<int:pk>/print/",
         CertificatePrintView.as_view(),
         name="certificate-print",
     ),
 
-    # 3. Router URLs included last
-    path("", include(router.urls)),
+    # Router APIs
+    path(
+        "",
+        include(router.urls),
+    ),
 ]
