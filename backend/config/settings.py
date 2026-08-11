@@ -28,10 +28,13 @@ SECRET_KEY = os.environ.get(
     "django-insecure-dev-only-key-change-me",
 )
 
-DEBUG = os.environ.get(
-    "DJANGO_DEBUG",
-    "True",
-).lower() in ("1", "true", "yes")
+DEBUG = (
+    os.environ.get(
+        "DJANGO_DEBUG",
+        "False",
+    ).lower()
+    in ("1", "true", "yes")
+)
 
 
 ALLOWED_HOSTS = [
@@ -46,7 +49,6 @@ ALLOWED_HOSTS = [
 # ============================================================
 
 INSTALLED_APPS = [
-
     # Django
     "django.contrib.admin",
     "django.contrib.auth",
@@ -74,8 +76,6 @@ INSTALLED_APPS = [
 # ============================================================
 
 MIDDLEWARE = [
-
-    # CORS must be near the top
     "corsheaders.middleware.CorsMiddleware",
 
     "django.middleware.security.SecurityMiddleware",
@@ -142,7 +142,6 @@ TEMPLATES = [
 DATABASE_URL = os.environ.get("DATABASE_URL")
 
 if DATABASE_URL:
-
     DATABASES = {
         "default": dj_database_url.parse(
             DATABASE_URL,
@@ -150,9 +149,7 @@ if DATABASE_URL:
             ssl_require=not DEBUG,
         )
     }
-
 else:
-
     DATABASES = {
         "default": {
             "ENGINE": "django.db.backends.sqlite3",
@@ -173,28 +170,24 @@ AUTH_USER_MODEL = "accounts.User"
 # ============================================================
 
 AUTH_PASSWORD_VALIDATORS = [
-
     {
         "NAME": (
             "django.contrib.auth.password_validation."
             "UserAttributeSimilarityValidator"
         ),
     },
-
     {
         "NAME": (
             "django.contrib.auth.password_validation."
             "MinimumLengthValidator"
         ),
     },
-
     {
         "NAME": (
             "django.contrib.auth.password_validation."
             "CommonPasswordValidator"
         ),
     },
-
     {
         "NAME": (
             "django.contrib.auth.password_validation."
@@ -228,9 +221,7 @@ STATIC_URL = "/static/"
 
 STATIC_ROOT = BASE_DIR / "staticfiles"
 
-
 STORAGES = {
-
     "default": {
         "BACKEND": (
             "django.core.files.storage."
@@ -270,20 +261,16 @@ DEFAULT_AUTO_FIELD = (
 # ============================================================
 
 REST_FRAMEWORK = {
-
-    # JWT Authentication
     "DEFAULT_AUTHENTICATION_CLASSES": (
         "rest_framework_simplejwt.authentication."
         "JWTAuthentication",
     ),
 
-    # Default permissions
     "DEFAULT_PERMISSION_CLASSES": (
         "rest_framework.permissions."
         "IsAuthenticatedOrReadOnly",
     ),
 
-    # Filters
     "DEFAULT_FILTER_BACKENDS": (
         "django_filters.rest_framework."
         "DjangoFilterBackend",
@@ -293,7 +280,6 @@ REST_FRAMEWORK = {
         "rest_framework.filters.OrderingFilter",
     ),
 
-    # Pagination
     "DEFAULT_PAGINATION_CLASS": (
         "rest_framework.pagination."
         "PageNumberPagination"
@@ -308,8 +294,6 @@ REST_FRAMEWORK = {
 # ============================================================
 
 SIMPLE_JWT = {
-
-    # Access token lifetime
     "ACCESS_TOKEN_LIFETIME": timedelta(
         minutes=int(
             os.environ.get(
@@ -319,7 +303,6 @@ SIMPLE_JWT = {
         )
     ),
 
-    # Refresh token lifetime
     "REFRESH_TOKEN_LIFETIME": timedelta(
         days=int(
             os.environ.get(
@@ -329,17 +312,14 @@ SIMPLE_JWT = {
         )
     ),
 
-    # Keep refresh token reusable
     "ROTATE_REFRESH_TOKENS": False,
 
     "BLACKLIST_AFTER_ROTATION": False,
 
-    # Authorization header
     "AUTH_HEADER_TYPES": (
         "Bearer",
     ),
 
-    # User identification
     "USER_ID_FIELD": "id",
 
     "USER_ID_CLAIM": "user_id",
@@ -354,16 +334,15 @@ SIMPLE_JWT = {
 
 FRONTEND_URL = os.environ.get(
     "FRONTEND_URL",
-    "https://ecoclub-madgwlj3y-sriramarjun12345-7056s-projects.vercel.app",
+    "https://ecoclub-mauve.vercel.app",
 ).rstrip("/")
 
 
 CORS_ALLOWED_ORIGINS = [
-
-    # Stable production domain
+    # Stable production frontend
     "https://ecoclub-mauve.vercel.app",
 
-    # Environment variable (set this to your current deployment or stable domain)
+    # Environment variable
     FRONTEND_URL,
 
     # Local development
@@ -378,8 +357,6 @@ CORS_ALLOWED_ORIGINS = [
 ]
 
 
-# Matches every Vercel preview deployment for this project, e.g.
-# https://ecoclub-8pd80ljgy-sriramarjun12345-7056s-projects.vercel.app
 CORS_ALLOWED_ORIGIN_REGEXES = [
     r"^https://ecoclub-[a-z0-9]+-sriramarjun12345-7056s-projects\.vercel\.app$",
 ]
@@ -416,14 +393,11 @@ CORS_ALLOW_HEADERS = [
 # ============================================================
 
 CSRF_TRUSTED_ORIGINS = [
-
-    # Stable production domain
     "https://ecoclub-mauve.vercel.app",
 
-    # Environment variable
     FRONTEND_URL,
 
-    # Any Vercel deployment for this project (wildcard subdomain, Django 4+)
+    # Vercel
     "https://*.vercel.app",
 ]
 
@@ -433,7 +407,6 @@ CSRF_TRUSTED_ORIGINS = [
 # ============================================================
 
 if not DEBUG:
-
     CSRF_COOKIE_SECURE = True
 
     SESSION_COOKIE_SECURE = True

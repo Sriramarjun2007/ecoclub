@@ -1,16 +1,22 @@
 from django.urls import include, path
 
+
 urlpatterns = [
+    # Authentication
     path(
         "auth/",
         include("apps.accounts.urls"),
     ),
+
+    # Events + registrations + participants + certificates
     path(
-        "events/",
+        "",
         include("apps.events.urls"),
     ),
+
+    # Settings + overview + impact + SDGs + gallery etc.
     path(
-        "actions/",
+        "",
         include("apps.actions.urls"),
     ),
 ]

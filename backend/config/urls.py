@@ -1,7 +1,3 @@
-"""
-Root URL configuration for the ECO CLUB platform.
-"""
-
 from django.conf import settings
 from django.conf.urls.static import static
 from django.contrib import admin

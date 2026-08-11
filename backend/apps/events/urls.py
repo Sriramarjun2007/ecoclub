@@ -2,62 +2,145 @@ from django.urls import include, path
 from rest_framework.routers import DefaultRouter
 
 from .views import (
-    CertificatePrintView,
-    CertificateViewSet,
-    EventRegisterView,
-    EventViewSet,
-    ParticipantViewSet,
-    RegistrationViewSet,
+    AnnouncementViewSet,
+    BlogViewSet,
+    ContactAdminViewSet,
+    ContactCreateView,
+    GalleryCategoryViewSet,
+    GalleryImageViewSet,
+    ImpactAdminViewSet,
+    ImpactView,
+    MemoryViewSet,
+    OverviewView,
+    SDGViewSet,
+    SettingsAdminViewSet,
+    SettingsView,
+    TeamViewSet,
+    UploadViewSet,
 )
 
 
-app_name = "events"
+app_name = "actions"
 
 
 router = DefaultRouter()
 
 router.register(
-    r"events",
-    EventViewSet,
-    basename="event",
+    r"sdgs",
+    SDGViewSet,
+    basename="sdg",
 )
 
 router.register(
-    r"registrations",
-    RegistrationViewSet,
-    basename="registration",
+    r"gallery-categories",
+    GalleryCategoryViewSet,
+    basename="gallery-category",
 )
 
 router.register(
-    r"participants",
-    ParticipantViewSet,
-    basename="participant",
+    r"gallery",
+    GalleryImageViewSet,
+    basename="gallery",
 )
 
 router.register(
-    r"certificates",
-    CertificateViewSet,
-    basename="certificate",
+    r"memories",
+    MemoryViewSet,
+    basename="memory",
+)
+
+router.register(
+    r"team",
+    TeamViewSet,
+    basename="team",
+)
+
+router.register(
+    r"announcements",
+    AnnouncementViewSet,
+    basename="announcement",
+)
+
+router.register(
+    r"blogs",
+    BlogViewSet,
+    basename="blog",
+)
+
+router.register(
+    r"contacts",
+    ContactAdminViewSet,
+    basename="contact-admin",
+)
+
+router.register(
+    r"impact-admin",
+    ImpactAdminViewSet,
+    basename="impact-admin",
+)
+
+router.register(
+    r"settings-admin",
+    SettingsAdminViewSet,
+    basename="settings-admin",
+)
+
+router.register(
+    r"uploads",
+    UploadViewSet,
+    basename="upload",
 )
 
 
 urlpatterns = [
+    # ========================================================
+    # ADMIN OVERVIEW
+    # GET /api/overview/
+    # ========================================================
 
-    # Public event registration
     path(
-        "events/<slug:slug>/register/",
-        EventRegisterView.as_view(),
-        name="event-register",
+        "overview/",
+        OverviewView.as_view(),
+        name="overview",
     ),
 
-    # Certificate print
+    # ========================================================
+    # PUBLIC IMPACT
+    # GET /api/impact/
+    # ========================================================
+
     path(
-        "certificates/<int:pk>/print/",
-        CertificatePrintView.as_view(),
-        name="certificate-print",
+        "impact/",
+        ImpactView.as_view(),
+        name="impact",
     ),
 
-    # Router APIs
+    # ========================================================
+    # PUBLIC SETTINGS
+    # GET /api/settings/
+    # ========================================================
+
+    path(
+        "settings/",
+        SettingsView.as_view(),
+        name="settings",
+    ),
+
+    # ========================================================
+    # CONTACT
+    # POST /api/contact/
+    # ========================================================
+
+    path(
+        "contact/",
+        ContactCreateView.as_view(),
+        name="contact",
+    ),
+
+    # ========================================================
+    # ROUTER
+    # ========================================================
+
     path(
         "",
         include(router.urls),
