@@ -1,9 +1,23 @@
-import React, { useEffect, useState } from 'react'
-import { useParams, useSearchParams } from 'react-router-dom'
+import React, {
+  useEffect,
+  useState,
+} from 'react'
+
+import {
+  useParams,
+  useSearchParams,
+} from 'react-router-dom'
+
+import axios from 'axios'
+
 import api from '../lib/api'
+
 import { useAuth } from '../context/AuthContext'
+
 import { useToast } from '../lib/toast'
+
 import Loader from '../components/Loader'
+
 import {
   FiCalendar,
   FiClock,
@@ -13,9 +27,9 @@ import {
 } from 'react-icons/fi'
 
 
-// ============================================================
-// STATUS
-// ============================================================
+/* =========================================================
+   STATUS
+   ========================================================= */
 
 const STATUS_BADGE = {
   open: 'Open for Registration',
@@ -23,6 +37,7 @@ const STATUS_BADGE = {
   closed: 'Registration Closed',
   past: 'Past Event',
 }
+
 
 const STATUS_COLOR = {
   open: 'bg-emerald-500',
@@ -32,61 +47,132 @@ const STATUS_COLOR = {
 }
 
 
-// ============================================================
-// EVENT DETAIL
-// ============================================================
+/* =========================================================
+   API URL
+   ========================================================= */
+
+const API_URL = (
+  import.meta.env.VITE_API_URL ||
+  'https://ecoclub-3q19.onrender.com/api'
+).replace(/\/+$/, '')
+
+
+/* =========================================================
+   COMPONENT
+   ========================================================= */
 
 export default function EventDetail() {
+
   const { slug } = useParams()
+
   const [params] = useSearchParams()
 
   const { user } = useAuth()
+
   const toast = useToast()
 
-  const [event, setEvent] = useState(null)
-  const [form, setForm] = useState({})
-  const [submitting, setSubmitting] = useState(false)
-  const [showForm, setShowForm] = useState(
-    params.get('register') === '1'
-  )
-  const [done, setDone] = useState(null)
-  const [already, setAlready] = useState(false)
-  const [error, setError] = useState('')
-  const [loading, setLoading] = useState(true)
+
+  /* =======================================================
+     STATE
+     ======================================================= */
+
+  const [event, setEvent] =
+    useState(null)
+
+  const [form, setForm] =
+    useState({
+      full_name: '',
+      register_number: '',
+      department: '',
+      year: '',
+      email: '',
+      phone: '',
+      college: '',
+      gender: '',
+      message: '',
+    })
+
+  const [submitting, setSubmitting] =
+    useState(false)
+
+  const [done, setDone] =
+    useState(null)
+
+  const [error, setError] =
+    useState('')
+
+  const [loading, setLoading] =
+    useState(true)
 
 
-  // ============================================================
-  // LOAD EVENT
-  // ============================================================
+  /* =======================================================
+     LOAD EVENT
+     ======================================================= */
 
   useEffect(() => {
+
     let mounted = true
 
     const getEvent = async () => {
+
       try {
+
         setLoading(true)
+
         setError('')
 
-        const idOrSlug = slug || ''
+        if (!slug) {
 
-        const res = await api.get(`/events/${idOrSlug}/`)
+          setError(
+            'Event slug is missing.'
+          )
 
-        if (!mounted) return
+          return
+        }
+
+        /*
+         * IMPORTANT:
+         *
+         * api baseURL already contains /api
+         *
+         * Therefore:
+         *
+         * /events/hack/
+         *
+         * NOT:
+         *
+         * /api/events/hack/
+         */
+
+        const res = await api.get(
+          `/events/${slug}/`
+        )
+
+        if (!mounted) {
+          return
+        }
 
         setEvent(res.data)
 
-        // --------------------------------------------------------
-        // AUTO FILL LOGGED-IN USER
-        // --------------------------------------------------------
+
+        /* -----------------------------------------------
+           USER DATA
+           ----------------------------------------------- */
 
         if (user) {
-          const profile = user.profile || {}
-          const userData = user.user || user
+
+          const profile =
+            user.profile || {}
+
+          const userData =
+            user.user || user
 
           setForm({
+
             full_name:
               userData.full_name ||
               userData.name ||
+              userData.username ||
               '',
 
             email:
@@ -116,107 +202,286 @@ export default function EventDetail() {
             gender:
               profile.gender ||
               '',
+
+            message: '',
           })
         }
 
       } catch (e) {
-        console.error('Event detail error:', e)
 
-        if (!mounted) return
+        console.error(
+          'Event detail error:',
+          e
+        )
+
+        if (!mounted) {
+          return
+        }
 
         const message =
           e?.response?.data?.detail ||
           e?.response?.data?.message ||
-          'Event not found'
+          'Event not found.'
 
-        setError(message)
+        setError(
+          String(message)
+        )
 
-        toast(String(message), 'error')
+        toast(
+          String(message),
+          'error'
+        )
+
       } finally {
+
         if (mounted) {
           setLoading(false)
         }
       }
     }
 
+
     getEvent()
+
 
     return () => {
       mounted = false
     }
+
   }, [slug, user])
 
 
-  // ============================================================
-  // FORM SUBMIT
-  // ============================================================
+  /* =======================================================
+     SUBMIT REGISTRATION
+     ======================================================= */
 
   const submit = async (e) => {
+
     e.preventDefault()
 
-    if (!event?.id) {
-      setError('Event information is unavailable.')
+
+    if (!event) {
+
+      setError(
+        'Event information is unavailable.'
+      )
+
       return
     }
 
+
+    if (!slug) {
+
+      setError(
+        'Event slug is missing.'
+      )
+
+      return
+    }
+
+
+    /* -------------------------------------------------------
+       VALIDATION
+       ------------------------------------------------------- */
+
+    if (
+      !form.full_name?.trim()
+    ) {
+
+      setError(
+        'Please enter your full name.'
+      )
+
+      return
+    }
+
+
+    if (
+      !form.email?.trim()
+    ) {
+
+      setError(
+        'Please enter your email.'
+      )
+
+      return
+    }
+
+
+    if (
+      !form.register_number?.trim()
+    ) {
+
+      setError(
+        'Please enter your register number.'
+      )
+
+      return
+    }
+
+
+    if (
+      !form.department?.trim()
+    ) {
+
+      setError(
+        'Please enter your department.'
+      )
+
+      return
+    }
+
+
     setSubmitting(true)
+
     setError('')
 
+
     try {
-      const res = await api.post(
-        `/events/${event.id}/register/`,
-        form
+
+      /*
+       * IMPORTANT:
+       *
+       * Use plain axios here.
+       *
+       * This guarantees that no JWT
+       * Authorization header is sent.
+       *
+       * Registration is PUBLIC.
+       */
+
+      const res = await axios.post(
+
+        `${API_URL}/events/${slug}/register/`,
+
+        {
+          full_name:
+            form.full_name,
+
+          register_number:
+            form.register_number,
+
+          department:
+            form.department,
+
+          year:
+            form.year,
+
+          email:
+            form.email,
+
+          phone:
+            form.phone,
+
+          college:
+            form.college,
+
+          gender:
+            form.gender,
+
+          message:
+            form.message,
+        },
+
+        {
+          headers: {
+            'Content-Type':
+              'application/json',
+          },
+        }
       )
+
 
       setDone(res.data)
 
-      toast('Registration Successful!')
+
+      toast(
+        'Registration Successful!',
+        'success'
+      )
 
     } catch (err) {
-      console.error('Registration error:', err)
 
-      const detail = err?.response?.data
+      console.error(
+        'Registration error:',
+        err?.response?.data || err
+      )
 
-      if (typeof detail === 'string') {
+
+      const detail =
+        err?.response?.data
+
+
+      if (
+        typeof detail === 'string'
+      ) {
+
         setError(detail)
-        toast(detail, 'error')
 
-      } else if (detail?.detail) {
-        setError(detail.detail)
-        toast(detail.detail, 'error')
+        toast(
+          detail,
+          'error'
+        )
 
-      } else if (detail && typeof detail === 'object') {
-        const firstError = Object.values(detail)
-          .flat()
-          .find(Boolean)
+      } else if (
+        detail?.detail
+      ) {
+
+        setError(
+          String(detail.detail)
+        )
+
+        toast(
+          String(detail.detail),
+          'error'
+        )
+
+      } else if (
+        detail &&
+        typeof detail === 'object'
+      ) {
+
+        const firstError =
+          Object.values(detail)
+            .flat()
+            .find(Boolean)
 
         const message =
           firstError ||
           'Unable to register. Please check your details.'
 
-        setError(String(message))
-        toast(String(message), 'error')
-
-      } else {
         setError(
-          'Unable to register. Please try again.'
+          String(message)
         )
 
         toast(
-          'Unable to register. Please try again.',
+          String(message),
+          'error'
+        )
+
+      } else {
+
+        const message =
+          'Unable to register. Please try again.'
+
+        setError(message)
+
+        toast(
+          message,
           'error'
         )
       }
 
     } finally {
+
       setSubmitting(false)
     }
   }
 
 
-  // ============================================================
-  // FORM FIELD
-  // ============================================================
+  /* =======================================================
+     FIELD
+     ======================================================= */
 
   const field = (
     key,
@@ -224,9 +489,11 @@ export default function EventDetail() {
     type = 'text',
     req = true
   ) => (
+
     <div>
 
       <label className="mb-1 block text-sm font-medium text-forest-800">
+
         {label}
 
         {req && (
@@ -234,15 +501,19 @@ export default function EventDetail() {
             {' '}*
           </span>
         )}
+
       </label>
+
 
       <input
         type={type}
         value={form[key] || ''}
         onChange={(e) => {
+
           setForm((f) => ({
             ...f,
-            [key]: e.target.value,
+            [key]:
+              e.target.value,
           }))
 
           if (error) {
@@ -257,25 +528,30 @@ export default function EventDetail() {
   )
 
 
-  // ============================================================
-  // LOADING
-  // ============================================================
+  /* =======================================================
+     LOADING
+     ======================================================= */
 
   if (loading) {
+
     return (
+
       <div className="pt-32">
         <Loader />
       </div>
+
     )
   }
 
 
-  // ============================================================
-  // EVENT NOT FOUND
-  // ============================================================
+  /* =======================================================
+     NOT FOUND
+     ======================================================= */
 
   if (!event) {
+
     return (
+
       <div className="px-4 pb-20 pt-32">
 
         <div className="mx-auto max-w-2xl rounded-2xl border border-rose-200 bg-rose-50 p-8 text-center">
@@ -289,75 +565,105 @@ export default function EventDetail() {
           </h1>
 
           <p className="mt-2 text-sm text-forest-700">
-            {error || 'The event could not be found.'}
+            {error ||
+              'The event could not be found.'}
           </p>
 
         </div>
 
       </div>
+
     )
   }
 
 
-  // ============================================================
-  // SAFE EVENT VALUES
-  // ============================================================
+  /* =======================================================
+     SAFE EVENT VALUES
+     ======================================================= */
 
   const registrationStatus =
-    event.registration_status || 'closed'
+    event.registration_status ||
+    'closed'
+
 
   const statusBadge =
-    STATUS_BADGE[registrationStatus] ||
+    STATUS_BADGE[
+      registrationStatus
+    ] ||
     'Registration Closed'
 
+
   const statusColor =
-    STATUS_COLOR[registrationStatus] ||
+    STATUS_COLOR[
+      registrationStatus
+    ] ||
     'bg-gray-400'
 
+
   const registrationsCount =
-    Number(event.registrations_count) || 0
+    Number(
+      event.registrations_count
+    ) || 0
+
 
   const maxParticipants =
-    Number(event.max_participants) || 0
+    Number(
+      event.max_participants
+    ) || 0
+
 
   const percentage =
     maxParticipants > 0
       ? Math.min(
           100,
-          (registrationsCount / maxParticipants) * 100
+          (
+            registrationsCount /
+            maxParticipants
+          ) * 100
         )
       : 0
 
 
-  // ============================================================
-  // RENDER
-  // ============================================================
+  /* =======================================================
+     RENDER
+     ======================================================= */
 
   return (
+
     <div className="pt-28">
 
       <div className="container-x px-4">
 
-        {/* ======================================================
+
+        {/* =================================================
             EVENT BANNER
-        ====================================================== */}
+        ================================================= */}
 
         <div className="relative h-64 overflow-hidden rounded-3xl bg-gradient-to-br from-emerald-800 to-green-600 md:h-96">
 
           {event.banner ? (
+
             <img
               src={event.banner}
-              alt={event.title || 'Event'}
+              alt={
+                event.title ||
+                'Event'
+              }
               className="h-full w-full object-cover"
               onError={(e) => {
-                e.currentTarget.style.display = 'none'
+                e.currentTarget.style.display =
+                  'none'
               }}
             />
+
           ) : (
+
             <div className="grid h-full w-full place-items-center text-7xl">
               🌱
             </div>
+
           )}
+
 
           <div className="absolute inset-0 grid items-end bg-gradient-to-t from-black/70 to-transparent p-6">
 
@@ -369,8 +675,10 @@ export default function EventDetail() {
                 {statusBadge}
               </span>
 
+
               <h1 className="mt-2 text-3xl font-bold text-white md:text-4xl">
-                {event.title || 'Untitled Event'}
+                {event.title ||
+                  'Untitled Event'}
               </h1>
 
             </div>
@@ -380,18 +688,19 @@ export default function EventDetail() {
         </div>
 
 
-        {/* ======================================================
+        {/* =================================================
             CONTENT
-        ====================================================== */}
+        ================================================= */}
 
         <div className="mt-8 grid gap-8 lg:grid-cols-3">
 
 
-          {/* ====================================================
+          {/* =================================================
               LEFT
-          ==================================================== */}
+          ================================================= */}
 
           <div className="space-y-8 lg:col-span-2">
+
 
             {/* ABOUT */}
 
@@ -412,6 +721,7 @@ export default function EventDetail() {
             {/* AGENDA */}
 
             {event.agenda && (
+
               <div className="glass rounded-2xl p-6">
 
                 <h2 className="font-display text-lg font-semibold">
@@ -423,12 +733,14 @@ export default function EventDetail() {
                 </p>
 
               </div>
+
             )}
 
 
             {/* RULES */}
 
             {event.rules && (
+
               <div className="glass rounded-2xl p-6">
 
                 <h2 className="font-display text-lg font-semibold">
@@ -440,21 +752,20 @@ export default function EventDetail() {
                 </p>
 
               </div>
+
             )}
 
           </div>
 
 
-          {/* ====================================================
+          {/* =================================================
               RIGHT
-          ==================================================== */}
+          ================================================= */}
 
           <div className="space-y-6">
 
 
-            {/* ==================================================
-                EVENT DETAILS
-            ================================================== */}
+            {/* EVENT DETAILS */}
 
             <div className="glass space-y-4 rounded-2xl p-6">
 
@@ -497,11 +808,14 @@ export default function EventDetail() {
                   </div>
 
                   <div className="font-medium">
-                    {event.start_time || '—'}
+
+                    {event.start_time ||
+                      '—'}
 
                     {event.end_time
                       ? ` – ${event.end_time}`
                       : ''}
+
                   </div>
 
                 </div>
@@ -522,7 +836,8 @@ export default function EventDetail() {
                   </div>
 
                   <div className="font-medium">
-                    {event.venue || '—'}
+                    {event.venue ||
+                      '—'}
                   </div>
 
                 </div>
@@ -543,7 +858,8 @@ export default function EventDetail() {
                   </div>
 
                   <div className="font-medium">
-                    {event.coordinator || '—'}
+                    {event.coordinator ||
+                      '—'}
                   </div>
 
                 </div>
@@ -564,9 +880,14 @@ export default function EventDetail() {
                   </div>
 
                   <div className="font-medium">
+
                     {registrationsCount}
+
                     {' / '}
-                    {maxParticipants || 'Unlimited'}
+
+                    {maxParticipants ||
+                      'Unlimited'}
+
                   </div>
 
                 </div>
@@ -577,26 +898,30 @@ export default function EventDetail() {
               {/* PROGRESS */}
 
               {maxParticipants > 0 && (
+
                 <div className="h-2 overflow-hidden rounded-full bg-emerald-100">
 
                   <div
                     className="h-full bg-emerald-500 transition-all"
                     style={{
-                      width: `${percentage}%`,
+                      width:
+                        `${percentage}%`,
                     }}
                   />
 
                 </div>
+
               )}
 
             </div>
 
 
-            {/* ==================================================
+            {/* =================================================
                 REGISTRATION
-            ================================================== */}
+            ================================================= */}
 
             <div className="glass rounded-2xl p-6">
+
 
               {/* SUCCESS */}
 
@@ -617,12 +942,15 @@ export default function EventDetail() {
                   </p>
 
                   <div className="mt-2 font-mono text-lg font-bold text-emerald-700">
-                    {done.registration_id || 'Confirmed'}
+
+                    {done.registration_id ||
+                      done.id ||
+                      'Confirmed'}
+
                   </div>
 
                   <p className="mt-3 text-xs text-forest-600">
-                    You will receive confirmation with the event
-                    details. Check your dashboard for updates.
+                    Your registration has been successfully recorded.
                   </p>
 
                 </div>
@@ -652,8 +980,7 @@ export default function EventDetail() {
                   </p>
 
                   <p className="mt-1 text-sm text-forest-600">
-                    All spots are taken. Follow our announcements
-                    for the next event.
+                    All spots are taken. Follow our announcements for the next event.
                   </p>
 
                 </div>
@@ -689,9 +1016,11 @@ export default function EventDetail() {
                   {/* ERROR */}
 
                   {error && (
+
                     <p className="rounded-lg bg-rose-50 p-2 text-sm text-rose-600">
                       {error}
                     </p>
+
                   )}
 
 
@@ -725,15 +1054,20 @@ export default function EventDetail() {
                     <div>
 
                       <label className="mb-1 block text-sm font-medium">
+
                         Year
+
                       </label>
 
                       <select
-                        value={form.year || ''}
+                        value={
+                          form.year || ''
+                        }
                         onChange={(e) =>
                           setForm((f) => ({
                             ...f,
-                            year: e.target.value,
+                            year:
+                              e.target.value,
                           }))
                         }
                         className="w-full rounded-lg border border-emerald-200 px-4 py-2.5 outline-none"
@@ -743,18 +1077,26 @@ export default function EventDetail() {
                           Select Year
                         </option>
 
-                        {['1', '2', '3', '4', 'PG'].map(
-                          (y) => (
-                            <option
-                              key={y}
-                              value={y}
-                            >
-                              {y === 'PG'
-                                ? 'Graduate'
-                                : `${y} Year`}
-                            </option>
-                          )
-                        )}
+                        {[
+                          '1',
+                          '2',
+                          '3',
+                          '4',
+                          'PG',
+                        ].map((y) => (
+
+                          <option
+                            key={y}
+                            value={y}
+                          >
+
+                            {y === 'PG'
+                              ? 'Graduate'
+                              : `${y} Year`}
+
+                          </option>
+
+                        ))}
 
                       </select>
 
@@ -793,11 +1135,14 @@ export default function EventDetail() {
                       </label>
 
                       <select
-                        value={form.gender || ''}
+                        value={
+                          form.gender || ''
+                        }
                         onChange={(e) =>
                           setForm((f) => ({
                             ...f,
-                            gender: e.target.value,
+                            gender:
+                              e.target.value,
                           }))
                         }
                         className="w-full rounded-lg border border-emerald-200 px-4 py-2.5"
@@ -843,11 +1188,14 @@ export default function EventDetail() {
                     </label>
 
                     <textarea
-                      value={form.message || ''}
+                      value={
+                        form.message || ''
+                      }
                       onChange={(e) =>
                         setForm((f) => ({
                           ...f,
-                          message: e.target.value,
+                          message:
+                            e.target.value,
                         }))
                       }
                       rows="2"
@@ -857,14 +1205,11 @@ export default function EventDetail() {
                   </div>
 
 
-                  {/* LOGIN TIP */}
+                  {/* PUBLIC MESSAGE */}
 
-                  {!user && (
-                    <p className="text-xs text-amber-600">
-                      Tip: Log in to auto-fill your details and
-                      receive eco points.
-                    </p>
-                  )}
+                  <p className="text-xs text-emerald-700">
+                    You do not need to log in to register for this event.
+                  </p>
 
 
                   {/* SUBMIT */}

@@ -1,180 +1,152 @@
-
 import axios from 'axios'
 
-const API_URL =
-  import.meta.env.VITE_API_URL || '/api'
+const API_URL = (
+  import.meta.env.VITE_API_URL ||
+  'http://127.0.0.1:8000/api'
+).replace(/\/+$/, '')
 
-const ACCESS_KEY = 'access'
-const REFRESH_KEY = 'refresh'
+const ACCESS_KEY = 'cb_access'
+const REFRESH_KEY = 'cb_refresh'
 
 const api = axios.create({
   baseURL: API_URL,
+
   headers: {
     'Content-Type': 'application/json',
   },
 })
 
-// ============================================================
-// ATTACH JWT ACCESS TOKEN
-// ============================================================
+
+/* =========================================================
+   REQUEST INTERCEPTOR
+   ========================================================= */
 
 api.interceptors.request.use(
   (config) => {
-    const token = localStorage.getItem(ACCESS_KEY)
 
-    if (token) {
-      config.headers = config.headers || {}
-      config.headers.Authorization = `Bearer ${token}`
+    const url = config.url || ''
+
+    /*
+     * PUBLIC EVENT REGISTRATION
+     *
+     * Do NOT send JWT.
+     */
+    const isPublicRegistration =
+      url.includes('/events/') &&
+      url.includes('/register/')
+
+    if (!isPublicRegistration) {
+
+      const token =
+        localStorage.getItem(ACCESS_KEY)
+
+      if (token) {
+
+        config.headers = config.headers || {}
+
+        config.headers.Authorization =
+          `Bearer ${token}`
+      }
     }
 
     return config
   },
-  (error) => Promise.reject(error)
+
+  (error) => {
+    return Promise.reject(error)
+  }
 )
 
-// ============================================================
-// PREVENT MULTIPLE REFRESH REQUESTS
-// ============================================================
 
-let refreshing = null
-
-// ============================================================
-// AUTO REFRESH ACCESS TOKEN
-// ============================================================
+/* =========================================================
+   RESPONSE INTERCEPTOR
+   ========================================================= */
 
 api.interceptors.response.use(
   (response) => response,
 
   async (error) => {
-    const original = error.config
 
-    // --------------------------------------------------------
-    // Only handle 401
-    // --------------------------------------------------------
+    const originalRequest = error.config
 
+    /*
+     * Never refresh token for public registration.
+     */
     if (
-      error.response?.status !== 401 ||
-      !original ||
-      original._retry
+      originalRequest?.url?.includes('/events/') &&
+      originalRequest?.url?.includes('/register/')
     ) {
       return Promise.reject(error)
     }
 
-    const refresh = localStorage.getItem(REFRESH_KEY)
+    /*
+     * Only refresh on 401.
+     */
+    if (
+      error.response?.status === 401 &&
+      originalRequest &&
+      !originalRequest._retry
+    ) {
 
-    // --------------------------------------------------------
-    // No refresh token
-    // --------------------------------------------------------
+      originalRequest._retry = true
 
-    if (!refresh) {
-      localStorage.removeItem(ACCESS_KEY)
-      localStorage.removeItem(REFRESH_KEY)
+      const refreshToken =
+        localStorage.getItem(REFRESH_KEY)
 
-      return Promise.reject(error)
-    }
+      if (!refreshToken) {
+        return Promise.reject(error)
+      }
 
-    original._retry = true
+      try {
 
-    try {
-      // ------------------------------------------------------
-      // If another request is already refreshing,
-      // wait for that request.
-      // ------------------------------------------------------
-
-      refreshing =
-        refreshing ||
-        axios
-          .post(
+        const refreshResponse =
+          await axios.post(
             `${API_URL}/auth/token/refresh/`,
             {
-              refresh,
-            },
-            {
-              headers: {
-                'Content-Type': 'application/json',
-              },
+              refresh: refreshToken,
             }
           )
-          .then((response) => {
-            const newAccess =
-              response.data.access
 
-            if (!newAccess) {
-              throw new Error(
-                'No access token returned from refresh endpoint'
-              )
-            }
+        const newAccessToken =
+          refreshResponse.data.access
 
-            localStorage.setItem(
-              ACCESS_KEY,
-              newAccess
-            )
+        if (!newAccessToken) {
+          throw new Error(
+            'No access token returned.'
+          )
+        }
 
-            // Some JWT configurations rotate
-            // the refresh token.
-            if (response.data.refresh) {
-              localStorage.setItem(
-                REFRESH_KEY,
-                response.data.refresh
-              )
-            }
+        localStorage.setItem(
+          ACCESS_KEY,
+          newAccessToken
+        )
 
-            return newAccess
-          })
-          .finally(() => {
-            refreshing = null
-          })
+        originalRequest.headers =
+          originalRequest.headers || {}
 
-      const newAccessToken =
-        await refreshing
+        originalRequest.headers.Authorization =
+          `Bearer ${newAccessToken}`
 
-      // ------------------------------------------------------
-      // Retry original request
-      // ------------------------------------------------------
+        return api(originalRequest)
 
-      original.headers =
-        original.headers || {}
+      } catch (refreshError) {
 
-      original.headers.Authorization =
-        `Bearer ${newAccessToken}`
+        localStorage.removeItem(
+          ACCESS_KEY
+        )
 
-      return api(original)
+        localStorage.removeItem(
+          REFRESH_KEY
+        )
 
-    } catch (refreshError) {
-
-      // ------------------------------------------------------
-      // Refresh failed → logout
-      // ------------------------------------------------------
-
-      localStorage.removeItem(
-        ACCESS_KEY
-      )
-
-      localStorage.removeItem(
-        REFRESH_KEY
-      )
-
-      localStorage.removeItem(
-        'user'
-      )
-
-      localStorage.removeItem(
-        'cb_access'
-      )
-
-      localStorage.removeItem(
-        'cb_refresh'
-      )
-
-      window.location.href =
-        '/login'
-
-      return Promise.reject(
-        refreshError
-      )
+        return Promise.reject(
+          refreshError
+        )
+      }
     }
+
+    return Promise.reject(error)
   }
 )
 
 export default api
-

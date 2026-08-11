@@ -1,4 +1,3 @@
-
 """
 Django settings for the ECO CLUB platform.
 """
@@ -11,18 +10,18 @@ import dj_database_url
 from dotenv import load_dotenv
 
 
-# =========================================================
+# ============================================================
 # BASE
-# =========================================================
+# ============================================================
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
 load_dotenv(BASE_DIR / ".env")
 
 
-# =========================================================
+# ============================================================
 # SECURITY
-# =========================================================
+# ============================================================
 
 SECRET_KEY = os.environ.get(
     "DJANGO_SECRET_KEY",
@@ -42,11 +41,12 @@ ALLOWED_HOSTS = [
 ]
 
 
-# =========================================================
+# ============================================================
 # APPLICATIONS
-# =========================================================
+# ============================================================
 
 INSTALLED_APPS = [
+
     # Django
     "django.contrib.admin",
     "django.contrib.auth",
@@ -69,12 +69,13 @@ INSTALLED_APPS = [
 ]
 
 
-# =========================================================
+# ============================================================
 # MIDDLEWARE
-# =========================================================
+# ============================================================
 
 MIDDLEWARE = [
-    # CORS MUST be near the top
+
+    # CORS should be near the top
     "corsheaders.middleware.CorsMiddleware",
 
     "django.middleware.security.SecurityMiddleware",
@@ -95,9 +96,9 @@ MIDDLEWARE = [
 ]
 
 
-# =========================================================
+# ============================================================
 # URL / APPLICATION
-# =========================================================
+# ============================================================
 
 ROOT_URLCONF = "config.urls"
 
@@ -106,13 +107,15 @@ WSGI_APPLICATION = "config.wsgi.application"
 ASGI_APPLICATION = "config.asgi.application"
 
 
-# =========================================================
+# ============================================================
 # TEMPLATES
-# =========================================================
+# ============================================================
 
 TEMPLATES = [
     {
-        "BACKEND": "django.template.backends.django.DjangoTemplates",
+        "BACKEND": (
+            "django.template.backends.django.DjangoTemplates"
+        ),
 
         "DIRS": [
             BASE_DIR / "templates",
@@ -132,13 +135,15 @@ TEMPLATES = [
 ]
 
 
-# =========================================================
+# ============================================================
 # DATABASE
-# =========================================================
+# ============================================================
 
 DATABASE_URL = os.environ.get("DATABASE_URL")
 
+
 if DATABASE_URL:
+
     DATABASES = {
         "default": dj_database_url.parse(
             DATABASE_URL,
@@ -146,7 +151,9 @@ if DATABASE_URL:
             ssl_require=not DEBUG,
         )
     }
+
 else:
+
     DATABASES = {
         "default": {
             "ENGINE": "django.db.backends.sqlite3",
@@ -155,36 +162,40 @@ else:
     }
 
 
-# =========================================================
+# ============================================================
 # CUSTOM USER MODEL
-# =========================================================
+# ============================================================
 
 AUTH_USER_MODEL = "accounts.User"
 
 
-# =========================================================
+# ============================================================
 # PASSWORD VALIDATION
-# =========================================================
+# ============================================================
 
 AUTH_PASSWORD_VALIDATORS = [
+
     {
         "NAME": (
             "django.contrib.auth.password_validation."
             "UserAttributeSimilarityValidator"
         ),
     },
+
     {
         "NAME": (
             "django.contrib.auth.password_validation."
             "MinimumLengthValidator"
         ),
     },
+
     {
         "NAME": (
             "django.contrib.auth.password_validation."
             "CommonPasswordValidator"
         ),
     },
+
     {
         "NAME": (
             "django.contrib.auth.password_validation."
@@ -194,9 +205,9 @@ AUTH_PASSWORD_VALIDATORS = [
 ]
 
 
-# =========================================================
+# ============================================================
 # INTERNATIONALIZATION
-# =========================================================
+# ============================================================
 
 LANGUAGE_CODE = "en-us"
 
@@ -210,17 +221,22 @@ USE_I18N = True
 USE_TZ = True
 
 
-# =========================================================
+# ============================================================
 # STATIC FILES
-# =========================================================
+# ============================================================
 
 STATIC_URL = "/static/"
 
 STATIC_ROOT = BASE_DIR / "staticfiles"
 
+
 STORAGES = {
+
     "default": {
-        "BACKEND": "django.core.files.storage.FileSystemStorage",
+        "BACKEND": (
+            "django.core.files.storage."
+            "FileSystemStorage"
+        ),
     },
 
     "staticfiles": {
@@ -232,54 +248,83 @@ STORAGES = {
 }
 
 
-# =========================================================
+# ============================================================
 # MEDIA FILES
-# =========================================================
+# ============================================================
 
 MEDIA_URL = "/media/"
 
 MEDIA_ROOT = BASE_DIR / "media"
 
 
-# =========================================================
+# ============================================================
 # DEFAULT PRIMARY KEY
-# =========================================================
+# ============================================================
 
-DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
+DEFAULT_AUTO_FIELD = (
+    "django.db.models.BigAutoField"
+)
 
 
-# =========================================================
+# ============================================================
 # DJANGO REST FRAMEWORK
-# =========================================================
+# ============================================================
 
 REST_FRAMEWORK = {
+
+    # --------------------------------------------------------
+    # JWT authentication
+    # --------------------------------------------------------
+
     "DEFAULT_AUTHENTICATION_CLASSES": (
-        "rest_framework_simplejwt.authentication.JWTAuthentication",
+        "rest_framework_simplejwt.authentication."
+        "JWTAuthentication",
     ),
+
+    # --------------------------------------------------------
+    # Default API permission
+    #
+    # Public endpoints can override this with AllowAny.
+    # Event registration does exactly that.
+    # --------------------------------------------------------
 
     "DEFAULT_PERMISSION_CLASSES": (
-        "rest_framework.permissions.IsAuthenticatedOrReadOnly",
+        "rest_framework.permissions."
+        "IsAuthenticatedOrReadOnly",
     ),
 
+    # --------------------------------------------------------
+    # Filters
+    # --------------------------------------------------------
+
     "DEFAULT_FILTER_BACKENDS": (
-        "django_filters.rest_framework.DjangoFilterBackend",
+        "django_filters.rest_framework."
+        "DjangoFilterBackend",
+
         "rest_framework.filters.SearchFilter",
+
         "rest_framework.filters.OrderingFilter",
     ),
 
+    # --------------------------------------------------------
+    # Pagination
+    # --------------------------------------------------------
+
     "DEFAULT_PAGINATION_CLASS": (
-        "rest_framework.pagination.PageNumberPagination"
+        "rest_framework.pagination."
+        "PageNumberPagination"
     ),
 
     "PAGE_SIZE": 12,
 }
 
 
-# =========================================================
+# ============================================================
 # JWT
-# =========================================================
+# ============================================================
 
 SIMPLE_JWT = {
+
     "ACCESS_TOKEN_LIFETIME": timedelta(
         minutes=int(
             os.environ.get(
@@ -308,22 +353,23 @@ SIMPLE_JWT = {
 }
 
 
-# =========================================================
+# ============================================================
 # FRONTEND / CORS
-# =========================================================
+# ============================================================
 
 FRONTEND_URL = os.environ.get(
     "FRONTEND_URL",
-    "https://ecoclub-ls0kkyt21-sriramarjun12345-7056s-projects.vercel.app",
+    "http://localhost:5173",
 ).rstrip("/")
 
 
 CORS_ALLOWED_ORIGINS = [
-    # Production frontend
-    "https://ecoclub-ls0kkyt21-sriramarjun12345-7056s-projects.vercel.app",
 
-    # Environment variable
+    # Production frontend
     FRONTEND_URL,
+
+    # Current Vercel deployment
+    "https://ecoclub-ls0kkyt21-sriramarjun12345-7056s-projects.vercel.app",
 
     # Local development
     "http://localhost:5173",
@@ -340,22 +386,23 @@ CORS_ALLOWED_ORIGINS = [
 CORS_ALLOW_CREDENTIALS = True
 
 
-# =========================================================
+# ============================================================
 # CSRF
-# =========================================================
+# ============================================================
 
 CSRF_TRUSTED_ORIGINS = [
-    # Production frontend
-    "https://ecoclub-ls0kkyt21-sriramarjun12345-7056s-projects.vercel.app",
 
-    # Environment variable
+    # Production frontend
     FRONTEND_URL,
+
+    # Current Vercel deployment
+    "https://ecoclub-ls0kkyt21-sriramarjun12345-7056s-projects.vercel.app",
 ]
 
 
-# =========================================================
+# ============================================================
 # PRODUCTION SECURITY
-# =========================================================
+# ============================================================
 
 if not DEBUG:
 
@@ -377,10 +424,14 @@ if not DEBUG:
     )
 
 
-# =========================================================
+# ============================================================
 # FILE UPLOAD LIMITS
-# =========================================================
+# ============================================================
 
-DATA_UPLOAD_MAX_MEMORY_SIZE = 5 * 1024 * 1024
+DATA_UPLOAD_MAX_MEMORY_SIZE = (
+    5 * 1024 * 1024
+)
 
-FILE_UPLOAD_MAX_MEMORY_SIZE = 5 * 1024 * 1024
+FILE_UPLOAD_MAX_MEMORY_SIZE = (
+    5 * 1024 * 1024
+)

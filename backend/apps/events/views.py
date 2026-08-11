@@ -1,4 +1,3 @@
-
 from django.utils.text import slugify
 
 from rest_framework import permissions, status, viewsets
@@ -72,15 +71,6 @@ class EventViewSet(viewsets.ModelViewSet):
         IsAdminOrReadOnly,
     ]
 
-    # ========================================================
-    # IMPORTANT
-    # Frontend uses:
-    #
-    # /api/events/hackathon/
-    #
-    # So DRF must find the event by slug.
-    # ========================================================
-
     lookup_field = "slug"
 
     filterset_fields = [
@@ -102,6 +92,22 @@ class EventViewSet(viewsets.ModelViewSet):
     ]
 
     # ========================================================
+    # PERMISSIONS
+    # ========================================================
+
+    def get_permissions(self):
+
+        # PUBLIC REGISTRATION
+        if self.action == "register":
+            return [
+                permissions.AllowAny()
+            ]
+
+        return [
+            IsAdminOrReadOnly()
+        ]
+
+    # ========================================================
     # QUERYSET
     # ========================================================
 
@@ -111,15 +117,17 @@ class EventViewSet(viewsets.ModelViewSet):
 
         user = self.request.user
 
-        # Public users can only see published events
-        if not (
+        is_admin = (
             user
             and user.is_authenticated
             and (
                 user.is_staff
                 or user.is_staff_member()
             )
-        ):
+        )
+
+        # Public users see published events only
+        if not is_admin:
             qs = qs.filter(
                 is_published=True
             )
@@ -145,7 +153,6 @@ class EventViewSet(viewsets.ModelViewSet):
 
         event = serializer.save()
 
-        # Automatically create slug
         if not event.slug:
 
             event.slug = (
@@ -154,35 +161,101 @@ class EventViewSet(viewsets.ModelViewSet):
             )
 
             event.save(
-                update_fields=["slug"]
+                update_fields=[
+                    "slug"
+                ]
             )
 
     # ========================================================
-    # REGISTER FOR EVENT
+    # PUBLIC EVENT REGISTRATION
+    #
+    # LOGIN NOT REQUIRED
     # ========================================================
 
     @action(
         detail=True,
         methods=["get", "post"],
         permission_classes=[
-            permissions.IsAuthenticated
+            permissions.AllowAny
         ],
+        authentication_classes=[],
     )
-    def register(self, request, slug=None):
+    def register(
+        self,
+        request,
+        slug=None,
+    ):
 
-        # Because lookup_field = "slug"
-        # DRF resolves the event using its slug.
+        # ====================================================
+        # GET EVENT
+        # ====================================================
+
         event = self.get_object()
+
+        # ====================================================
+        # GET REGISTRATION STATUS
+        # ====================================================
+
+        if request.method == "GET":
+
+            if (
+                request.user
+                and request.user.is_authenticated
+            ):
+
+                registration = (
+                    event.registrations
+                    .filter(
+                        user=request.user
+                    )
+                    .first()
+                )
+
+                return Response(
+                    {
+                        "registered": bool(
+                            registration
+                        ),
+                        "registration": (
+                            EventRegistrationSerializer(
+                                registration
+                            ).data
+                            if registration
+                            else None
+                        ),
+                    }
+                )
+
+            return Response(
+                {
+                    "registered": False,
+                    "registration": None,
+                }
+            )
 
         # ====================================================
         # POST
         # ====================================================
 
-        if request.method == "POST":
+        data = request.data.copy()
 
-            data = dict(request.data)
+        # Always force event from URL
+        data["event"] = event.pk
 
-            data["event"] = event.id
+        # ====================================================
+        # AUTHENTICATION CHECK
+        # ====================================================
+
+        is_authenticated = (
+            request.user
+            and request.user.is_authenticated
+        )
+
+        # ====================================================
+        # LOGGED-IN USER
+        # ====================================================
+
+        if is_authenticated:
 
             profile = getattr(
                 request.user,
@@ -190,9 +263,9 @@ class EventViewSet(viewsets.ModelViewSet):
                 None,
             )
 
-            # ------------------------------------------------
-            # USER PROFILE DATA
-            # ------------------------------------------------
+            # ----------------------------------------------
+            # PROFILE DATA
+            # ----------------------------------------------
 
             if profile:
 
@@ -203,17 +276,29 @@ class EventViewSet(viewsets.ModelViewSet):
 
                 data.setdefault(
                     "register_number",
-                    profile.register_number,
+                    getattr(
+                        profile,
+                        "register_number",
+                        "",
+                    ),
                 )
 
                 data.setdefault(
                     "department",
-                    profile.department,
+                    getattr(
+                        profile,
+                        "department",
+                        "",
+                    ),
                 )
 
                 data.setdefault(
                     "year",
-                    profile.year,
+                    getattr(
+                        profile,
+                        "year",
+                        "",
+                    ),
                 )
 
                 data.setdefault(
@@ -223,17 +308,34 @@ class EventViewSet(viewsets.ModelViewSet):
 
                 data.setdefault(
                     "phone",
-                    request.user.phone,
+                    getattr(
+                        request.user,
+                        "phone",
+                        "",
+                    ),
                 )
 
                 data.setdefault(
                     "college",
-                    profile.college,
+                    getattr(
+                        profile,
+                        "college",
+                        "",
+                    ),
                 )
 
-            # ------------------------------------------------
-            # FALLBACK VALUES
-            # ------------------------------------------------
+                data.setdefault(
+                    "gender",
+                    getattr(
+                        profile,
+                        "gender",
+                        "",
+                    ),
+                )
+
+            # ----------------------------------------------
+            # USER FALLBACK
+            # ----------------------------------------------
 
             data.setdefault(
                 "full_name",
@@ -245,40 +347,54 @@ class EventViewSet(viewsets.ModelViewSet):
                 request.user.email,
             )
 
-            # ------------------------------------------------
-            # SERIALIZE
-            # ------------------------------------------------
+        # ====================================================
+        # SERIALIZE
+        # ====================================================
 
-            serializer = EventRegistrationSerializer(
-                data=data
-            )
+        serializer = EventRegistrationSerializer(
+            data=data
+        )
 
-            serializer.is_valid(
-                raise_exception=True
-            )
+        serializer.is_valid(
+            raise_exception=True
+        )
 
-            registration = serializer.save(
-                user=request.user
-            )
+        # ====================================================
+        # SAVE
+        # ====================================================
 
-            # ------------------------------------------------
-            # WAITLIST
-            # ------------------------------------------------
-
-            if event.registration_status == "full":
-
-                registration.status = "waitlist"
-
-                registration.save(
-                    update_fields=["status"]
-                )
-
-            # ------------------------------------------------
-            # AWARD POINTS
-            # ------------------------------------------------
-
-            membership = get_membership_for_user(
+        registration = serializer.save(
+            user=(
                 request.user
+                if is_authenticated
+                else None
+            )
+        )
+
+        # ====================================================
+        # WAITLIST
+        # ====================================================
+
+        if event.registration_status == "full":
+
+            registration.status = "waitlist"
+
+            registration.save(
+                update_fields=[
+                    "status"
+                ]
+            )
+
+        # ====================================================
+        # AWARD POINTS
+        # ====================================================
+
+        if is_authenticated:
+
+            membership = (
+                get_membership_for_user(
+                    request.user
+                )
             )
 
             if membership:
@@ -290,35 +406,15 @@ class EventViewSet(viewsets.ModelViewSet):
                     f"Registered for {event.title}",
                 )
 
-            return Response(
-                serializer.data,
-                status=status.HTTP_201_CREATED,
-            )
-
         # ====================================================
-        # GET REGISTRATION STATUS
+        # RESPONSE
         # ====================================================
-
-        registration = (
-            event.registrations
-            .filter(
-                user=request.user
-            )
-            .first()
-        )
 
         return Response(
-            {
-                "registered": bool(registration),
-
-                "registration": (
-                    EventRegistrationSerializer(
-                        registration
-                    ).data
-                    if registration
-                    else None
-                ),
-            }
+            EventRegistrationSerializer(
+                registration
+            ).data,
+            status=status.HTTP_201_CREATED,
         )
 
 
@@ -327,11 +423,6 @@ class EventViewSet(viewsets.ModelViewSet):
 # ============================================================
 
 class CertificatePrintView(APIView):
-
-    """
-    Server-rendered printable certificate.
-    Browser print can be used to save as PDF.
-    """
 
     permission_classes = [
         permissions.AllowAny
@@ -407,11 +498,9 @@ class RegistrationViewSet(
         "department",
     ]
 
-    def get_permissions(self):
-
-        return [
-            permissions.IsAuthenticated()
-        ]
+    permission_classes = [
+        permissions.IsAuthenticated
+    ]
 
     def get_queryset(self):
 
@@ -419,10 +508,12 @@ class RegistrationViewSet(
 
         user = self.request.user
 
-        if not (
+        is_admin = (
             user.is_staff
             or user.is_staff_member()
-        ):
+        )
+
+        if not is_admin:
 
             qs = qs.filter(
                 user=user
@@ -548,14 +639,16 @@ class CertificateViewSet(
 
         user = self.request.user
 
-        if not (
+        is_admin = (
             user
             and user.is_authenticated
             and (
                 user.is_staff
                 or user.is_staff_member()
             )
-        ):
+        )
+
+        if not is_admin:
 
             profile = getattr(
                 user,
@@ -587,8 +680,12 @@ class CertificateViewSet(
         permission_classes=[
             permissions.AllowAny
         ],
+        authentication_classes=[],
     )
-    def verify(self, request):
+    def verify(
+        self,
+        request,
+    ):
 
         code = (
             request.data.get("code")
@@ -643,11 +740,9 @@ class CertificateViewSet(
         return Response(
             {
                 "valid": True,
-
                 "certificate":
                     CertificateSerializer(
                         certificate
                     ).data,
             }
         )
-
