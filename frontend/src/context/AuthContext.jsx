@@ -1,4 +1,3 @@
-
 import React, {
   createContext,
   useContext,
@@ -333,6 +332,27 @@ export function AuthProvider({ children }) {
   }
 
   // ==========================================================
+  // IS ADMIN
+  //
+  // Admin.jsx (and any other admin-only screen) calls
+  // isAdmin() to decide whether to allow access. This must
+  // match however the backend reports role — check both
+  // `user.user.role` (matches AUTH ME RESPONSE shape seen
+  // in the console logs: { user, profile, membership, ... })
+  // and `user.role` as a fallback in case that shape changes.
+  // ==========================================================
+
+  const isAdmin = () => {
+    const role =
+      user?.user?.role || user?.role
+
+    return (
+      role === 'admin' ||
+      role === 'staff'
+    )
+  }
+
+  // ==========================================================
   // CONTEXT
   // ==========================================================
 
@@ -345,6 +365,7 @@ export function AuthProvider({ children }) {
         logout,
         refreshUser,
         isAuthenticated: !!user,
+        isAdmin,
       }}
     >
       {children}
@@ -368,4 +389,3 @@ export function useAuth() {
 
   return context
 }
-
