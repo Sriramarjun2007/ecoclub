@@ -7,8 +7,6 @@ import {
   FiClock,
   FiMapPin,
   FiUsers,
-  FiArrowRight,
-  FiLeaf,
 } from 'react-icons/fi'
 
 const STATUS_STYLE = {
@@ -39,9 +37,7 @@ export default function EventCard({ event, index = 0 }) {
       }}
       className="glass rounded-2xl overflow-hidden flex flex-col hover:shadow-xl transition group"
     >
-      {/* ======================================================
-          EVENT IMAGE
-      ====================================================== */}
+      {/* EVENT IMAGE */}
 
       <div className="relative h-44 bg-gradient-to-br from-emerald-700 via-green-600 to-lime-500 overflow-hidden">
 
@@ -53,7 +49,13 @@ export default function EventCard({ event, index = 0 }) {
           />
         ) : (
           <div className="w-full h-full grid place-items-center text-white/70">
-            <FiLeaf className="w-14 h-14" />
+            <span
+              className="text-5xl"
+              role="img"
+              aria-label="Eco event"
+            >
+              🌱
+            </span>
           </div>
         )}
 
@@ -74,19 +76,13 @@ export default function EventCard({ event, index = 0 }) {
         </span>
       </div>
 
-      {/* ======================================================
-          EVENT CONTENT
-      ====================================================== */}
+      {/* EVENT CONTENT */}
 
       <div className="p-5 flex flex-col flex-1">
-
-        {/* TITLE */}
 
         <h3 className="font-display font-semibold text-forest-950 group-hover:text-emerald-700 transition">
           {event?.title || 'Untitled Event'}
         </h3>
-
-        {/* DETAILS */}
 
         <div className="mt-3 space-y-1.5 text-sm text-forest-700">
 
@@ -94,7 +90,6 @@ export default function EventCard({ event, index = 0 }) {
 
           <div className="flex items-center gap-2">
             <FiCalendar className="text-emerald-600 flex-shrink-0" />
-
             <span>
               {event?.date || 'Date not available'}
             </span>
@@ -104,10 +99,8 @@ export default function EventCard({ event, index = 0 }) {
 
           <div className="flex items-center gap-2">
             <FiClock className="text-emerald-600 flex-shrink-0" />
-
             <span>
               {event?.start_time || 'Time not available'}
-
               {event?.end_time
                 ? ` – ${event.end_time}`
                 : ''}
@@ -118,17 +111,15 @@ export default function EventCard({ event, index = 0 }) {
 
           <div className="flex items-center gap-2">
             <FiMapPin className="text-emerald-600 flex-shrink-0" />
-
             <span>
               {event?.venue || 'Venue not available'}
             </span>
           </div>
 
-          {/* PARTICIPANTS */}
+          {/* REGISTRATIONS */}
 
           <div className="flex items-center gap-2">
             <FiUsers className="text-emerald-600 flex-shrink-0" />
-
             <span>
               {event?.registrations_count || 0}
               {' / '}
@@ -139,9 +130,7 @@ export default function EventCard({ event, index = 0 }) {
 
         </div>
 
-        {/* ====================================================
-            BUTTONS
-        ==================================================== */}
+        {/* BUTTONS */}
 
         <div className="mt-5 flex gap-3 mt-auto pt-4">
 
