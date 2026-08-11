@@ -1,28 +1,33 @@
-
 from django.urls import include, path
 from rest_framework.routers import DefaultRouter
 
 from .views import (
-    AnnouncementViewSet,
-    BlogViewSet,
-    ContactAdminViewSet,
-    ContactCreateView,
+    OverviewView,
+    SDGViewSet,
     GalleryCategoryViewSet,
     GalleryImageViewSet,
-    ImpactAdminViewSet,
-    ImpactView,
     MemoryViewSet,
-    SDGViewSet,
-    SettingsAdminViewSet,
-    SettingsView,
     TeamViewSet,
+    AnnouncementViewSet,
+    BlogViewSet,
+    ContactCreateView,
+    ContactAdminViewSet,
+    ImpactView,
+    ImpactAdminViewSet,
+    SettingsView,
+    SettingsAdminViewSet,
     UploadViewSet,
-    OverviewView,
 )
 
 app_name = "actions"
 
+
+# ============================================================
+# ROUTER
+# ============================================================
+
 router = DefaultRouter()
+
 
 # ============================================================
 # SDGs
@@ -33,6 +38,7 @@ router.register(
     SDGViewSet,
     basename="sdg",
 )
+
 
 # ============================================================
 # GALLERY
@@ -45,10 +51,11 @@ router.register(
 )
 
 router.register(
-    r"gallery",
+    r"gallery/images",
     GalleryImageViewSet,
-    basename="gallery",
+    basename="gallery-image",
 )
+
 
 # ============================================================
 # MEMORIES
@@ -60,6 +67,7 @@ router.register(
     basename="memory",
 )
 
+
 # ============================================================
 # TEAM
 # ============================================================
@@ -69,6 +77,7 @@ router.register(
     TeamViewSet,
     basename="team",
 )
+
 
 # ============================================================
 # ANNOUNCEMENTS
@@ -80,6 +89,7 @@ router.register(
     basename="announcement",
 )
 
+
 # ============================================================
 # BLOG
 # ============================================================
@@ -90,35 +100,39 @@ router.register(
     basename="blog",
 )
 
+
 # ============================================================
 # CONTACT ADMIN
 # ============================================================
 
 router.register(
-    r"contact/admin",
+    r"contacts",
     ContactAdminViewSet,
     basename="contact-admin",
 )
+
 
 # ============================================================
 # IMPACT ADMIN
 # ============================================================
 
 router.register(
-    r"impact/admin",
+    r"impact-admin",
     ImpactAdminViewSet,
     basename="impact-admin",
 )
+
 
 # ============================================================
 # SETTINGS ADMIN
 # ============================================================
 
 router.register(
-    r"settings/admin",
+    r"settings-admin",
     SettingsAdminViewSet,
     basename="settings-admin",
 )
+
 
 # ============================================================
 # UPLOADS
@@ -130,42 +144,63 @@ router.register(
     basename="upload",
 )
 
+
 # ============================================================
 # URL PATTERNS
 # ============================================================
 
 urlpatterns = [
-    # Router APIs
-    path(
-        "",
-        include(router.urls),
-    ),
 
-    # Dashboard overview
+    # --------------------------------------------------------
+    # ADMIN OVERVIEW
+    # GET /api/overview/
+    # --------------------------------------------------------
+
     path(
         "overview/",
         OverviewView.as_view(),
         name="overview",
     ),
 
-    # Public contact form
-    path(
-        "contact/",
-        ContactCreateView.as_view(),
-        name="contact-create",
-    ),
+    # --------------------------------------------------------
+    # PUBLIC IMPACT
+    # GET /api/impact/
+    # --------------------------------------------------------
 
-    # Public impact
     path(
         "impact/",
         ImpactView.as_view(),
         name="impact",
     ),
 
-    # Public settings
+    # --------------------------------------------------------
+    # PUBLIC SETTINGS
+    # GET /api/settings/
+    # --------------------------------------------------------
+
     path(
         "settings/",
         SettingsView.as_view(),
         name="settings",
+    ),
+
+    # --------------------------------------------------------
+    # PUBLIC CONTACT
+    # POST /api/contact/
+    # --------------------------------------------------------
+
+    path(
+        "contact/",
+        ContactCreateView.as_view(),
+        name="contact-create",
+    ),
+
+    # --------------------------------------------------------
+    # ADMIN / ROUTER API
+    # --------------------------------------------------------
+
+    path(
+        "",
+        include(router.urls),
     ),
 ]

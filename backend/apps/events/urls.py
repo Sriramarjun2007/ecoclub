@@ -2,139 +2,79 @@ from django.urls import include, path
 from rest_framework.routers import DefaultRouter
 
 from .views import (
-    AnnouncementViewSet,
-    BlogViewSet,
-    ContactAdminViewSet,
-    ContactCreateView,
-    GalleryCategoryViewSet,
-    GalleryImageViewSet,
-    ImpactAdminViewSet,
-    ImpactView,
-    MemoryViewSet,
-    OverviewView,
-    SDGViewSet,
-    SettingsAdminViewSet,
-    SettingsView,
-    TeamViewSet,
-    UploadViewSet,
+    CertificatePrintView,
+    CertificateViewSet,
+    EventRegisterView,
+    EventViewSet,
+    ParticipantViewSet,
+    RegistrationViewSet,
 )
 
-
-app_name = "actions"
-
+app_name = "events"
 
 router = DefaultRouter()
 
-router.register(
-    r"sdgs",
-    SDGViewSet,
-    basename="sdg",
-)
+# ============================================================
+# EVENT REGISTRATIONS
+# ============================================================
 
 router.register(
-    r"gallery-categories",
-    GalleryCategoryViewSet,
-    basename="gallery-category",
+    r"registrations",
+    RegistrationViewSet,
+    basename="registration",
 )
+
+# ============================================================
+# EVENT PARTICIPANTS
+# ============================================================
 
 router.register(
-    r"gallery",
-    GalleryImageViewSet,
-    basename="gallery",
+    r"participants",
+    ParticipantViewSet,
+    basename="participant",
 )
+
+# ============================================================
+# CERTIFICATES
+# ============================================================
 
 router.register(
-    r"memories",
-    MemoryViewSet,
-    basename="memory",
+    r"certificates",
+    CertificateViewSet,
+    basename="certificate",
 )
+
+# ============================================================
+# EVENTS
+# ============================================================
 
 router.register(
-    r"team",
-    TeamViewSet,
-    basename="team",
+    r"",
+    EventViewSet,
+    basename="event",
 )
-
-router.register(
-    r"announcements",
-    AnnouncementViewSet,
-    basename="announcement",
-)
-
-router.register(
-    r"blogs",
-    BlogViewSet,
-    basename="blog",
-)
-
-router.register(
-    r"contacts",
-    ContactAdminViewSet,
-    basename="contact-admin",
-)
-
-router.register(
-    r"impact-admin",
-    ImpactAdminViewSet,
-    basename="impact-admin",
-)
-
-router.register(
-    r"settings-admin",
-    SettingsAdminViewSet,
-    basename="settings-admin",
-)
-
-router.register(
-    r"uploads",
-    UploadViewSet,
-    basename="upload",
-)
-
 
 urlpatterns = [
     # ========================================================
-    # ADMIN OVERVIEW
-    # GET /api/overview/
+    # PUBLIC EVENT REGISTRATION
+    # GET/POST /api/events/<slug>/register/
     # ========================================================
 
     path(
-        "overview/",
-        OverviewView.as_view(),
-        name="overview",
+        "<slug:slug>/register/",
+        EventRegisterView.as_view(),
+        name="event-register",
     ),
 
     # ========================================================
-    # PUBLIC IMPACT
-    # GET /api/impact/
+    # CERTIFICATE PRINT
+    # GET /api/events/certificates/<pk>/print/
     # ========================================================
 
     path(
-        "impact/",
-        ImpactView.as_view(),
-        name="impact",
-    ),
-
-    # ========================================================
-    # PUBLIC SETTINGS
-    # GET /api/settings/
-    # ========================================================
-
-    path(
-        "settings/",
-        SettingsView.as_view(),
-        name="settings",
-    ),
-
-    # ========================================================
-    # CONTACT
-    # POST /api/contact/
-    # ========================================================
-
-    path(
-        "contact/",
-        ContactCreateView.as_view(),
-        name="contact",
+        "certificates/<int:pk>/print/",
+        CertificatePrintView.as_view(),
+        name="certificate-print",
     ),
 
     # ========================================================
