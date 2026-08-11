@@ -97,8 +97,11 @@ export default function Admin() {
 
               <button
                 onClick={async () => {
-                  await logout()
-                  navigate('/', { replace: true })
+                  try {
+                    await logout()
+                  } finally {
+                    navigate('/', { replace: true })
+                  }
                 }}
                 className="flex items-center gap-1.5 px-4 py-2 rounded-lg bg-rose-600 text-white text-sm font-medium hover:bg-rose-700 transition"
               >
@@ -168,12 +171,15 @@ function Overview({ onNav }) {
         console.log('Overview API:', response.data)
 
         setOverview({
+          // IMPORTANT: default is 0, not 1
           students:
             response.data?.students ??
             response.data?.members ??
-            1,
+            0,
 
-          events: response.data?.events ?? 0,
+          events:
+            response.data?.events ?? 0,
+
           registrations:
             response.data?.registrations ?? 0,
 
@@ -204,7 +210,7 @@ function Overview({ onNav }) {
         if (!mounted) return
 
         setOverview({
-          students: 1,
+          students: 0,
           events: 0,
           registrations: 0,
           volunteers: 0,
@@ -228,7 +234,7 @@ function Overview({ onNav }) {
   const cards = [
     [
       'Students',
-      overview?.students ?? 1,
+      overview?.students ?? 0,
       'Registered students',
       () => onNav('Students'),
     ],
@@ -633,19 +639,26 @@ function Events() {
     setSaving(true)
 
     try {
-      if (form.id) {
+      const { id, ...payload } = form
+
+      if (id) {
         await api.patch(
-          `/events/${form.id}/`,
-          form
+          `/events/${id}/`,
+          payload
         )
 
         toast('Event updated')
       } else {
-        await api.post('/events/', form)
+        await api.post(
+          '/events/',
+          payload
+        )
+
         toast('Event created')
       }
 
       setModal(false)
+      setForm({})
       reload()
     } catch (error) {
       console.error(
@@ -653,10 +666,11 @@ function Events() {
         error.response?.data || error
       )
 
+      const data = error.response?.data
+
       toast(
-        Object.values(
-          error.response?.data || {}
-        )[0]?.[0] ||
+        data?.detail ||
+          Object.values(data || {})[0]?.[0] ||
           'Unable to save event',
         'error'
       )
@@ -675,9 +689,14 @@ function Events() {
       toast('Deleted')
       reload()
     } catch (error) {
-      console.error(error)
+      console.error(
+        'Event delete error:',
+        error.response?.data || error
+      )
+
       toast(
-        'Unable to delete event',
+        error.response?.data?.detail ||
+          'Unable to delete event',
         'error'
       )
     }
@@ -752,7 +771,11 @@ function Events() {
 
       <Modal
         open={modal}
-        onClose={() => setModal(false)}
+        onClose={() => {
+          if (!saving) {
+            setModal(false)
+          }
+        }}
         title={
           form.id
             ? 'Edit Event'
@@ -952,7 +975,8 @@ function Gallery() {
       )
 
       toast(
-        'Upload failed',
+        error.response?.data?.detail ||
+          'Upload failed',
         'error'
       )
     } finally {
@@ -971,10 +995,14 @@ function Gallery() {
       toast('Deleted')
       reload()
     } catch (error) {
-      console.error(error)
+      console.error(
+        'Gallery delete error:',
+        error.response?.data || error
+      )
 
       toast(
-        'Delete failed',
+        error.response?.data?.detail ||
+          'Delete failed',
         'error'
       )
     }
@@ -1088,20 +1116,23 @@ function Team() {
     setSaving(true)
 
     try {
-      if (form.id) {
+      const { id, ...payload } = form
+
+      if (id) {
         await api.patch(
-          `/team/${form.id}/`,
-          form
+          `/team/${id}/`,
+          payload
         )
       } else {
         await api.post(
           '/team/',
-          form
+          payload
         )
       }
 
       toast('Saved')
       setModal(false)
+      setForm({})
       reload()
     } catch (error) {
       console.error(
@@ -1109,8 +1140,12 @@ function Team() {
         error.response?.data || error
       )
 
+      const data = error.response?.data
+
       toast(
-        'Error',
+        data?.detail ||
+          Object.values(data || {})[0]?.[0] ||
+          'Error',
         'error'
       )
     } finally {
@@ -1131,10 +1166,14 @@ function Team() {
       toast('Removed')
       reload()
     } catch (error) {
-      console.error(error)
+      console.error(
+        'Team delete error:',
+        error.response?.data || error
+      )
 
       toast(
-        'Delete failed',
+        error.response?.data?.detail ||
+          'Delete failed',
         'error'
       )
     }
@@ -1215,9 +1254,11 @@ function Team() {
 
       <Modal
         open={modal}
-        onClose={() =>
-          setModal(false)
-        }
+        onClose={() => {
+          if (!saving) {
+            setModal(false)
+          }
+        }}
         title={
           form.id
             ? 'Edit Member'
@@ -1324,20 +1365,28 @@ function SDGs() {
     setSaving(true)
 
     try {
-      if (form.id) {
+      const { id, ...payload } = form
+
+      if (id) {
         await api.patch(
-          `/sdgs/${form.id}/`,
-          form
+          `/sdgs/${id}/`,
+          payload
         )
       } else {
         await api.post(
           '/sdgs/',
-          form
+          payload
         )
       }
 
-      toast('Saved')
+      toast(
+        id
+          ? 'SDG updated'
+          : 'SDG created'
+      )
+
       setModal(false)
+      setForm({})
       reload()
     } catch (error) {
       console.error(
@@ -1345,12 +1394,42 @@ function SDGs() {
         error.response?.data || error
       )
 
+      const data = error.response?.data
+
       toast(
-        'Error',
+        data?.detail ||
+          Object.values(data || {})[0]?.[0] ||
+          'Unable to save SDG',
         'error'
       )
     } finally {
       setSaving(false)
+    }
+  }
+
+  const del = async (id) => {
+    if (!window.confirm('Delete this SDG?')) {
+      return
+    }
+
+    try {
+      await api.delete(
+        `/sdgs/${id}/`
+      )
+
+      toast('SDG deleted')
+      reload()
+    } catch (error) {
+      console.error(
+        'SDG delete error:',
+        error.response?.data || error
+      )
+
+      toast(
+        error.response?.data?.detail ||
+          'Unable to delete SDG',
+        'error'
+      )
     }
   }
 
@@ -1392,7 +1471,7 @@ function SDGs() {
                 {sdg.number}
               </span>
 
-              <div>
+              <div className="flex-1 min-w-0">
                 <div className="font-semibold">
                   {sdg.name}
                 </div>
@@ -1403,6 +1482,30 @@ function SDGs() {
                   activities
                 </div>
               </div>
+
+              {/* EDIT / DELETE */}
+              <div className="flex gap-2 shrink-0">
+                <button
+                  onClick={() => {
+                    setForm(sdg)
+                    setModal(true)
+                  }}
+                  className="p-2 rounded-lg bg-emerald-50 text-emerald-700"
+                  title="Edit SDG"
+                >
+                  <FiEdit2 />
+                </button>
+
+                <button
+                  onClick={() =>
+                    del(sdg.id)
+                  }
+                  className="p-2 rounded-lg bg-rose-50 text-rose-600"
+                  title="Delete SDG"
+                >
+                  <FiTrash2 />
+                </button>
+              </div>
             </div>
           ))}
         </div>
@@ -1412,9 +1515,11 @@ function SDGs() {
 
       <Modal
         open={modal}
-        onClose={() =>
-          setModal(false)
-        }
+        onClose={() => {
+          if (!saving) {
+            setModal(false)
+          }
+        }}
         title={
           form.id
             ? 'Edit SDG'
@@ -1507,20 +1612,23 @@ function Announcements() {
     setSaving(true)
 
     try {
-      if (form.id) {
+      const { id, ...payload } = form
+
+      if (id) {
         await api.patch(
-          `/announcements/${form.id}/`,
-          form
+          `/announcements/${id}/`,
+          payload
         )
       } else {
         await api.post(
           '/announcements/',
-          form
+          payload
         )
       }
 
       toast('Posted')
       setModal(false)
+      setForm({})
       reload()
     } catch (error) {
       console.error(
@@ -1528,8 +1636,12 @@ function Announcements() {
         error.response?.data || error
       )
 
+      const data = error.response?.data
+
       toast(
-        'Unable to save announcement',
+        data?.detail ||
+          Object.values(data || {})[0]?.[0] ||
+          'Unable to save announcement',
         'error'
       )
     } finally {
@@ -1550,10 +1662,14 @@ function Announcements() {
       toast('Deleted')
       reload()
     } catch (error) {
-      console.error(error)
+      console.error(
+        'Announcement delete error:',
+        error.response?.data || error
+      )
 
       toast(
-        'Delete failed',
+        error.response?.data?.detail ||
+          'Delete failed',
         'error'
       )
     }
@@ -1616,9 +1732,11 @@ function Announcements() {
 
       <Modal
         open={modal}
-        onClose={() =>
-          setModal(false)
-        }
+        onClose={() => {
+          if (!saving) {
+            setModal(false)
+          }
+        }}
         title={
           form.id
             ? 'Edit Announcement'
@@ -1677,20 +1795,23 @@ function Blog() {
     setSaving(true)
 
     try {
-      if (form.id) {
+      const { id, ...payload } = form
+
+      if (id) {
         await api.patch(
-          `/blog/${form.id}/`,
-          form
+          `/blog/${id}/`,
+          payload
         )
       } else {
         await api.post(
           '/blog/',
-          form
+          payload
         )
       }
 
       toast('Published')
       setModal(false)
+      setForm({})
       reload()
     } catch (error) {
       console.error(
@@ -1698,8 +1819,12 @@ function Blog() {
         error.response?.data || error
       )
 
+      const data = error.response?.data
+
       toast(
-        'Unable to save post',
+        data?.detail ||
+          Object.values(data || {})[0]?.[0] ||
+          'Unable to save post',
         'error'
       )
     } finally {
@@ -1720,10 +1845,14 @@ function Blog() {
       toast('Deleted')
       reload()
     } catch (error) {
-      console.error(error)
+      console.error(
+        'Blog delete error:',
+        error.response?.data || error
+      )
 
       toast(
-        'Delete failed',
+        error.response?.data?.detail ||
+          'Delete failed',
         'error'
       )
     }
@@ -1787,9 +1916,11 @@ function Blog() {
 
       <Modal
         open={modal}
-        onClose={() =>
-          setModal(false)
-        }
+        onClose={() => {
+          if (!saving) {
+            setModal(false)
+          }
+        }}
         title={
           form.id
             ? 'Edit Blog Post'
@@ -2026,16 +2157,15 @@ function Impact() {
     fallback
   ) => {
     try {
+      const rawValue =
+        form[metric] ?? fallback
+
+      const value =
+        parseInt(rawValue, 10) || 0
+
       await api.patch(
         `/impact/admin/${id}/`,
-        {
-          value:
-            parseInt(
-              form[metric] ??
-                fallback,
-              10
-            ) || 0,
-        }
+        { value }
       )
 
       toast('Updated')
@@ -2047,7 +2177,8 @@ function Impact() {
       )
 
       toast(
-        'Unable to update impact',
+        error.response?.data?.detail ||
+          'Unable to update impact',
         'error'
       )
     }
@@ -2089,7 +2220,7 @@ function Impact() {
                 <input
                   type="number"
                   defaultValue={
-                    item.value
+                    item.value ?? 0
                   }
                   onChange={(e) =>
                     setForm((f) => ({
@@ -2106,7 +2237,7 @@ function Impact() {
                     update(
                       item.id,
                       item.metric,
-                      item.value
+                      item.value ?? 0
                     )
                   }
                   className="px-3 py-1.5 rounded-lg bg-emerald-600 text-white text-sm"
@@ -2139,8 +2270,16 @@ function Settings() {
 
   const toast = useToast()
   const [edits, setEdits] = useState({})
+  const [saving, setSaving] = useState(false)
 
   const saveAll = async () => {
+    if (!Object.keys(edits).length) {
+      toast('No changes to save')
+      return
+    }
+
+    setSaving(true)
+
     try {
       for (
         const [id, value]
@@ -2162,9 +2301,12 @@ function Settings() {
       )
 
       toast(
-        'Unable to save settings',
+        error.response?.data?.detail ||
+          'Unable to save settings',
         'error'
       )
+    } finally {
+      setSaving(false)
     }
   }
 
@@ -2178,36 +2320,43 @@ function Settings() {
         <Loader />
       ) : (
         <>
-          <div className="grid md:grid-cols-2 gap-4">
-            {data.map((setting) => (
-              <div key={setting.id}>
-                <label className="block text-sm font-medium text-forest-800">
-                  {setting.label ||
-                    setting.key}
-                </label>
+          {data.length ? (
+            <div className="grid md:grid-cols-2 gap-4">
+              {data.map((setting) => (
+                <div key={setting.id}>
+                  <label className="block text-sm font-medium text-forest-800">
+                    {setting.label ||
+                      setting.key}
+                  </label>
 
-                <input
-                  defaultValue={
-                    setting.value || ''
-                  }
-                  onChange={(e) =>
-                    setEdits((f) => ({
-                      ...f,
-                      [setting.id]:
-                        e.target.value,
-                    }))
-                  }
-                  className="w-full mt-1 px-3 py-2 rounded-lg border border-emerald-200 text-sm outline-none focus:ring-2 focus:ring-emerald-200"
-                />
-              </div>
-            ))}
-          </div>
+                  <input
+                    defaultValue={
+                      setting.value || ''
+                    }
+                    onChange={(e) =>
+                      setEdits((f) => ({
+                        ...f,
+                        [setting.id]:
+                          e.target.value,
+                      }))
+                    }
+                    className="w-full mt-1 px-3 py-2 rounded-lg border border-emerald-200 text-sm outline-none focus:ring-2 focus:ring-emerald-200"
+                  />
+                </div>
+              ))}
+            </div>
+          ) : (
+            <EmptyState message="No settings found." />
+          )}
 
           <button
             onClick={saveAll}
-            className="mt-6 px-5 py-2.5 rounded-lg bg-emerald-600 text-white font-semibold"
+            disabled={saving}
+            className="mt-6 px-5 py-2.5 rounded-lg bg-emerald-600 text-white font-semibold disabled:opacity-60"
           >
-            Save All Settings
+            {saving
+              ? 'Saving...'
+              : 'Save All Settings'}
           </button>
 
           <p className="text-sm text-gray-500 mt-4">
