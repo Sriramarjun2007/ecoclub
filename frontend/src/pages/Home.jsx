@@ -1,4 +1,3 @@
-
 import React, { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import api from '../lib/api'
@@ -140,7 +139,7 @@ export default function Home() {
       // =====================================================
 
       api
-        .get('/gallery/', {
+        .get('/gallery/images/', {
           params: {
             page_size: 6,
           },
@@ -1059,4 +1058,3 @@ export default function Home() {
     </>
   )
 }
-
