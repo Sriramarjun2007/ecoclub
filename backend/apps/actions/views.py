@@ -1,4 +1,3 @@
-
 from django.utils.text import slugify
 
 from rest_framework import (
@@ -11,6 +10,7 @@ from rest_framework.response import Response
 
 from apps.accounts.models import User, Membership
 from apps.accounts.permissions import IsClubAdmin
+from apps.events.models import Event, EventRegistration
 
 from .models import (
     Announcement,
@@ -112,19 +112,14 @@ class OverviewView(views.APIView):
         # ----------------------------------------------------
         # EVENTS
         # ----------------------------------------------------
-        # Change this later if you have an Event model.
-        # ----------------------------------------------------
 
-        events_count = 0
+        events_count = Event.objects.count()
 
         # ----------------------------------------------------
         # REGISTRATIONS
         # ----------------------------------------------------
-        # Change this later if you have an EventRegistration
-        # model.
-        # ----------------------------------------------------
 
-        registrations_count = 0
+        registrations_count = EventRegistration.objects.count()
 
         # ----------------------------------------------------
         # IMPACT STATISTICS
@@ -596,4 +591,3 @@ class UploadViewSet(
     permission_classes = [
         IsClubAdmin
     ]
-
