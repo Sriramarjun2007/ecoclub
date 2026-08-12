@@ -1,4 +1,8 @@
-import React, { useEffect, useState } from 'react'
+import React, {
+  useCallback,
+  useEffect,
+  useState,
+} from 'react'
 import { useNavigate } from 'react-router-dom'
 import api from '../lib/api'
 import { useAuth } from '../context/AuthContext'
@@ -171,7 +175,6 @@ function Overview({ onNav }) {
         console.log('Overview API:', response.data)
 
         setOverview({
-          // IMPORTANT: default is 0, not 1
           students:
             response.data?.students ??
             response.data?.members ??
@@ -317,10 +320,7 @@ function Overview({ onNav }) {
             ['Blog Posts', 'Blog'],
             ['Announcements', 'Announcements'],
             ['Website Settings', 'Settings'],
-            [
-              'Certificate / Participants',
-              'Certificates',
-            ],
+            ['Certificate / Participants', 'Certificates'],
           ].map(([label, target]) => (
             <button
               key={target}
@@ -345,7 +345,7 @@ function useList(url) {
   const [data, setData] = useState([])
   const [loading, setLoading] = useState(true)
 
-  const reload = async () => {
+  const reload = useCallback(async () => {
     setLoading(true)
 
     try {
@@ -371,11 +371,11 @@ function useList(url) {
     } finally {
       setLoading(false)
     }
-  }
+  }, [url])
 
   useEffect(() => {
     reload()
-  }, [url])
+  }, [reload])
 
   return {
     data,
@@ -666,11 +666,11 @@ function Events() {
         error.response?.data || error
       )
 
-      const data = error.response?.data
+      const errorData = error.response?.data
 
       toast(
-        data?.detail ||
-          Object.values(data || {})[0]?.[0] ||
+        errorData?.detail ||
+          Object.values(errorData || {})[0]?.[0] ||
           'Unable to save event',
         'error'
       )
@@ -878,7 +878,7 @@ function Registrations() {
     data,
     loading,
   } = useList(
-    '/registrations/?page_size=100'
+    '/events/registrations/?page_size=100'
   )
 
   return (
@@ -932,7 +932,7 @@ function Gallery() {
     data,
     loading,
     reload,
-  } = useList('/gallery/?page_size=100')
+  } = useList('/gallery/images/?page_size=100')
 
   const toast = useToast()
 
@@ -958,7 +958,7 @@ function Gallery() {
       formData.append('title', title)
 
       await api.post(
-        '/gallery/',
+        '/gallery/images/',
         formData
       )
 
@@ -990,7 +990,7 @@ function Gallery() {
     }
 
     try {
-      await api.delete(`/gallery/${id}/`)
+      await api.delete(`/gallery/images/${id}/`)
 
       toast('Deleted')
       reload()
@@ -1140,11 +1140,11 @@ function Team() {
         error.response?.data || error
       )
 
-      const data = error.response?.data
+      const errorData = error.response?.data
 
       toast(
-        data?.detail ||
-          Object.values(data || {})[0]?.[0] ||
+        errorData?.detail ||
+          Object.values(errorData || {})[0]?.[0] ||
           'Error',
         'error'
       )
@@ -1394,11 +1394,11 @@ function SDGs() {
         error.response?.data || error
       )
 
-      const data = error.response?.data
+      const errorData = error.response?.data
 
       toast(
-        data?.detail ||
-          Object.values(data || {})[0]?.[0] ||
+        errorData?.detail ||
+          Object.values(errorData || {})[0]?.[0] ||
           'Unable to save SDG',
         'error'
       )
@@ -1483,7 +1483,6 @@ function SDGs() {
                 </div>
               </div>
 
-              {/* EDIT / DELETE */}
               <div className="flex gap-2 shrink-0">
                 <button
                   onClick={() => {
@@ -1636,11 +1635,11 @@ function Announcements() {
         error.response?.data || error
       )
 
-      const data = error.response?.data
+      const errorData = error.response?.data
 
       toast(
-        data?.detail ||
-          Object.values(data || {})[0]?.[0] ||
+        errorData?.detail ||
+          Object.values(errorData || {})[0]?.[0] ||
           'Unable to save announcement',
         'error'
       )
@@ -1819,11 +1818,11 @@ function Blog() {
         error.response?.data || error
       )
 
-      const data = error.response?.data
+      const errorData = error.response?.data
 
       toast(
-        data?.detail ||
-          Object.values(data || {})[0]?.[0] ||
+        errorData?.detail ||
+          Object.values(errorData || {})[0]?.[0] ||
           'Unable to save post',
         'error'
       )
@@ -1988,7 +1987,7 @@ function Certificates() {
     loading,
     reload,
   } = useList(
-    '/participants/?page_size=100'
+    '/events/participants/?page_size=100'
   )
 
   const toast = useToast()
@@ -1996,7 +1995,7 @@ function Certificates() {
   const certify = async (id) => {
     try {
       await api.post(
-        `/participants/${id}/certify/`
+        `/events/participants/${id}/certify/`
       )
 
       toast(
@@ -2084,7 +2083,7 @@ function Messages() {
     data,
     loading,
   } = useList(
-    '/contact/admin/?page_size=50'
+    '/contacts/?page_size=50'
   )
 
   return (
@@ -2145,7 +2144,7 @@ function Impact() {
     loading,
     reload,
   } = useList(
-    '/impact/admin/?page_size=20'
+    '/impact-admin/?page_size=20'
   )
 
   const toast = useToast()
@@ -2164,7 +2163,7 @@ function Impact() {
         parseInt(rawValue, 10) || 0
 
       await api.patch(
-        `/impact/admin/${id}/`,
+        `/impact-admin/${id}/`,
         { value }
       )
 
@@ -2265,7 +2264,7 @@ function Settings() {
     loading,
     reload,
   } = useList(
-    '/settings/admin/?page_size=100'
+    '/settings-admin/?page_size=100'
   )
 
   const toast = useToast()
@@ -2286,7 +2285,7 @@ function Settings() {
         of Object.entries(edits)
       ) {
         await api.patch(
-          `/settings/admin/${id}/`,
+          `/settings-admin/${id}/`,
           { value }
         )
       }
@@ -2429,7 +2428,9 @@ function Field({
   )
 }
 
-
+/* ============================================================
+   TEXT AREA
+============================================================ */
 
 function TextArea({
   label,
