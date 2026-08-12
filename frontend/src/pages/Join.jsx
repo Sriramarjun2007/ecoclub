@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react'
 import { Link } from 'react-router-dom'
 import api from '../lib/api'
@@ -23,7 +22,9 @@ const INTERESTS = [
 export default function Join() {
   const toast = useToast()
 
-  const [form, setForm] = useState({})
+  const [form, setForm] = useState({
+    college: 'Kalasalingam University',
+  })
   const [interests, setInterests] = useState([])
   const [photo, setPhoto] = useState(null)
   const [submitting, setSubmitting] = useState(false)
