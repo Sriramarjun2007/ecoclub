@@ -253,12 +253,6 @@ function Overview({ onNav }) {
       'Event registrations',
       () => onNav('Registrations'),
     ],
-    [
-      'Trees Planted',
-      overview?.trees ?? 0,
-      'Environmental impact',
-      () => onNav('Impact'),
-    ],
   ]
 
   return (
@@ -279,7 +273,7 @@ function Overview({ onNav }) {
         {loading ? (
           <Loader />
         ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
             {cards.map(
               ([label, value, subtitle, go]) => (
                 <button
@@ -881,11 +875,141 @@ function Registrations() {
     '/events/registrations/?page_size=100'
   )
 
+  const toast = useToast()
+  const [exporting, setExporting] = useState(false)
+
+  const exportCsv = async () => {
+    setExporting(true)
+
+    try {
+      // Fetch every page so the export isn't limited
+      // to whatever page_size the list view uses.
+      let all = []
+      let url = '/events/registrations/?page_size=200'
+
+      while (url) {
+        const response = await api.get(url)
+
+        const page =
+          response.data?.results ??
+          response.data ??
+          []
+
+        all = all.concat(
+          Array.isArray(page) ? page : []
+        )
+
+        const next = response.data?.next
+
+        if (!next) {
+          url = null
+        } else {
+          // `next` is a full URL from DRF pagination;
+          // strip the API's own base so axios's baseURL
+          // (which already includes /api) isn't duplicated.
+          const nextUrl = new URL(next)
+          url = nextUrl.pathname.replace(/^\/api/, '') + nextUrl.search
+        }
+      }
+
+      if (!all.length) {
+        toast('No registrations to export', 'error')
+        return
+      }
+
+      const columns = [
+        ['full_name', 'Name'],
+        ['register_number', 'Register Number'],
+        ['email', 'Email'],
+        ['event_title', 'Event'],
+        ['status', 'Status'],
+        ['created_at', 'Registered At'],
+      ]
+
+      const escapeCell = (value) => {
+        const str = value === null || value === undefined
+          ? ''
+          : String(value)
+
+        if (/[",\n]/.test(str)) {
+          return `"${str.replace(/"/g, '""')}"`
+        }
+
+        return str
+      }
+
+      const getEventTitle = (r) =>
+        r.event_title || r.event?.title || ''
+
+      const rows = all.map((r) => [
+        r.full_name,
+        r.register_number,
+        r.email,
+        getEventTitle(r),
+        r.status,
+        r.created_at,
+      ])
+
+      const csvLines = [
+        columns.map(([, label]) => escapeCell(label)).join(','),
+        ...rows.map((row) => row.map(escapeCell).join(',')),
+      ]
+
+      const csvContent = csvLines.join('\r\n')
+
+      const blob = new Blob(
+        [csvContent],
+        { type: 'text/csv;charset=utf-8;' }
+      )
+
+      const blobUrl = URL.createObjectURL(blob)
+      const link = document.createElement('a')
+
+      const today = new Date()
+        .toISOString()
+        .slice(0, 10)
+
+      link.href = blobUrl
+      link.download = `ecoclub-registrations-${today}.csv`
+
+      document.body.appendChild(link)
+      link.click()
+      document.body.removeChild(link)
+
+      URL.revokeObjectURL(blobUrl)
+
+      toast(`Exported ${all.length} registrations`)
+    } catch (error) {
+      console.error(
+        'Registration export error:',
+        error.response?.data || error
+      )
+
+      toast(
+        error.response?.data?.detail ||
+          'Unable to export registrations',
+        'error'
+      )
+    } finally {
+      setExporting(false)
+    }
+  }
+
   return (
     <div>
-      <h2 className="text-xl font-bold text-forest-950 mb-5">
-        Event Registrations
-      </h2>
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-5">
+        <h2 className="text-xl font-bold text-forest-950">
+          Event Registrations
+        </h2>
+
+        <button
+          onClick={exportCsv}
+          disabled={exporting || loading}
+          className="px-4 py-2 rounded-lg bg-emerald-600 text-white text-sm font-semibold disabled:opacity-60"
+        >
+          {exporting ? 'Exporting…' : 'Download CSV'}
+        </button>
+      </div>
 
       {loading ? (
         <Loader />
