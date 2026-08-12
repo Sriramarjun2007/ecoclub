@@ -1,43 +1,30 @@
+from django.shortcuts import render
 from django.utils.text import slugify
 
-from rest_framework import (
-    permissions,
-    viewsets,
-    views,
-    status,
-)
+from rest_framework import permissions, status, viewsets
+from rest_framework.views import APIView
+from rest_framework.decorators import action
 from rest_framework.response import Response
 
-from apps.accounts.models import User, Membership
-from apps.accounts.permissions import IsClubAdmin
-from apps.events.models import Event, Registration
+from apps.actions.models import WebsiteSetting
+from apps.accounts.services import (
+    award_points,
+    get_membership_for_user,
+)
 
 from .models import (
-    Announcement,
-    BlogPost,
-    ContactMessage,
-    GalleryCategory,
-    GalleryImage,
-    ImpactStatistic,
-    Memory,
-    SDG,
-    TeamMember,
-    UploadedFile,
-    WebsiteSetting,
+    Certificate,
+    Event,
+    EventParticipant,
+    EventRegistration,
 )
 
 from .serializers import (
-    AnnouncementSerializer,
-    BlogPostSerializer,
-    ContactMessageSerializer,
-    GalleryCategorySerializer,
-    GalleryImageSerializer,
-    ImpactStatisticSerializer,
-    MemorySerializer,
-    SDGSerializer,
-    TeamMemberSerializer,
-    UploadedFileSerializer,
-    WebsiteSettingSerializer,
+    CertificateSerializer,
+    EventDetailSerializer,
+    EventListSerializer,
+    EventParticipantSerializer,
+    EventRegistrationSerializer,
 )
 
 
@@ -47,329 +34,74 @@ from .serializers import (
 
 class IsAdminOrReadOnly(permissions.BasePermission):
 
-    message = "You do not have permission to perform this action."
-
     def has_permission(self, request, view):
 
-        # Public users can GET/HEAD/OPTIONS
+        # GET / HEAD / OPTIONS are public
         if request.method in permissions.SAFE_METHODS:
             return True
 
-        # Only Eco Club admins can modify content
-        return IsClubAdmin().has_permission(
-            request,
-            view,
-        )
+        user = request.user
 
-
-# ============================================================
-# ADMIN OVERVIEW
-# ============================================================
-
-class OverviewView(views.APIView):
-
-    permission_classes = [
-        IsClubAdmin
-    ]
-
-    def get(self, request):
-
-        # ----------------------------------------------------
-        # TOTAL STUDENTS
-        # ----------------------------------------------------
-        # Shows the actual number of student users.
-        # If there are no students, this returns 0.
-        # ----------------------------------------------------
-
-        students_count = User.objects.filter(
-            role="student"
-        ).count()
-
-        # ----------------------------------------------------
-        # APPROVED MEMBERS
-        # ----------------------------------------------------
-
-        approved_members_count = Membership.objects.filter(
-            status="approved"
-        ).count()
-
-        # ----------------------------------------------------
-        # PENDING MEMBERS
-        # ----------------------------------------------------
-
-        pending_members_count = Membership.objects.filter(
-            status="pending"
-        ).count()
-
-        # ----------------------------------------------------
-        # REJECTED MEMBERS
-        # ----------------------------------------------------
-
-        rejected_members_count = Membership.objects.filter(
-            status="rejected"
-        ).count()
-
-        # ----------------------------------------------------
-        # EVENTS
-        # ----------------------------------------------------
-
-        events_count = Event.objects.count()
-
-        # ----------------------------------------------------
-        # REGISTRATIONS
-        # ----------------------------------------------------
-
-        registrations_count = Registration.objects.count()
-
-        # ----------------------------------------------------
-        # IMPACT STATISTICS
-        # ----------------------------------------------------
-
-        stats = dict(
-            ImpactStatistic.objects.values_list(
-                "metric",
-                "value",
-            )
-        )
-
-        # ----------------------------------------------------
-        # RESPONSE
-        # ----------------------------------------------------
-
-        return Response(
-            {
-                "students": students_count,
-
-                "events": events_count,
-
-                "registrations": registrations_count,
-
-                "volunteers": stats.get(
-                    "volunteers",
-                    0,
-                ),
-
-                "trees": stats.get(
-                    "trees",
-                    0,
-                ),
-
-                "waste": stats.get(
-                    "waste",
-                    0,
-                ),
-
-                "water": stats.get(
-                    "water",
-                    0,
-                ),
-
-                "campaigns": stats.get(
-                    "campaigns",
-                    0,
-                ),
-
-                "members": approved_members_count,
-
-                "approved_members": approved_members_count,
-
-                "pending_members": pending_members_count,
-
-                "rejected_members": rejected_members_count,
-            },
-            status=status.HTTP_200_OK,
-        )
-
-
-# ============================================================
-# SDG
-# ============================================================
-
-class SDGViewSet(viewsets.ModelViewSet):
-
-    queryset = SDG.objects.all().prefetch_related(
-        "activities"
-    )
-
-    serializer_class = SDGSerializer
-
-    permission_classes = [
-        IsAdminOrReadOnly
-    ]
-
-    filterset_fields = [
-        "number",
-    ]
-
-    def get_queryset(self):
-
-        qs = super().get_queryset()
-
-        if self.request.query_params.get("featured"):
-            qs = qs.filter(
-                is_featured=True
-            )
-
-        return qs
-
-
-# ============================================================
-# GALLERY CATEGORY
-# ============================================================
-
-class GalleryCategoryViewSet(viewsets.ModelViewSet):
-
-    queryset = GalleryCategory.objects.all()
-
-    serializer_class = GalleryCategorySerializer
-
-    permission_classes = [
-        IsAdminOrReadOnly
-    ]
-
-
-# ============================================================
-# GALLERY IMAGE
-# ============================================================
-
-class GalleryImageViewSet(viewsets.ModelViewSet):
-
-    queryset = GalleryImage.objects.all()
-
-    serializer_class = GalleryImageSerializer
-
-    permission_classes = [
-        IsAdminOrReadOnly
-    ]
-
-    filterset_fields = [
-        "category",
-        "event",
-    ]
-
-    search_fields = [
-        "title",
-        "caption",
-    ]
-
-
-# ============================================================
-# MEMORY
-# ============================================================
-
-class MemoryViewSet(viewsets.ModelViewSet):
-
-    queryset = Memory.objects.all()
-
-    serializer_class = MemorySerializer
-
-    permission_classes = [
-        IsAdminOrReadOnly
-    ]
-
-    filterset_fields = [
-        "is_highlight",
-    ]
-
-
-# ============================================================
-# TEAM
-# ============================================================
-
-class TeamViewSet(viewsets.ModelViewSet):
-
-    queryset = TeamMember.objects.all()
-
-    serializer_class = TeamMemberSerializer
-
-    permission_classes = [
-        IsAdminOrReadOnly
-    ]
-
-    filterset_fields = [
-        "role",
-    ]
-
-    search_fields = [
-        "name",
-        "department",
-        "position",
-    ]
-
-
-# ============================================================
-# ANNOUNCEMENTS
-# ============================================================
-
-class AnnouncementViewSet(viewsets.ModelViewSet):
-
-    queryset = Announcement.objects.all()
-
-    serializer_class = AnnouncementSerializer
-
-    permission_classes = [
-        IsAdminOrReadOnly
-    ]
-
-    filterset_fields = [
-        "category",
-        "is_active",
-    ]
-
-    search_fields = [
-        "title",
-        "body",
-    ]
-
-    def get_queryset(self):
-
-        qs = super().get_queryset()
-
-        user = self.request.user
-
-        is_admin = (
+        return (
             user
             and user.is_authenticated
-            and IsClubAdmin().has_permission(
-                self.request,
-                self,
+            and (
+                user.is_staff
+                or user.is_staff_member()
             )
         )
 
-        if not is_admin:
-            qs = qs.filter(
-                is_active=True
-            )
-
-        return qs
-
 
 # ============================================================
-# BLOG
+# EVENTS
 # ============================================================
 
-class BlogViewSet(viewsets.ModelViewSet):
+class EventViewSet(viewsets.ModelViewSet):
 
-    queryset = BlogPost.objects.all()
+    queryset = (
+        Event.objects
+        .all()
+        .prefetch_related(
+            "sdgs",
+            "registrations",
+        )
+    )
 
-    serializer_class = BlogPostSerializer
+    serializer_class = EventListSerializer
 
-    permission_classes = [
-        IsAdminOrReadOnly
-    ]
+    lookup_field = "slug"
 
     filterset_fields = [
         "category",
+        "is_past",
+        "sdgs",
         "is_published",
     ]
 
     search_fields = [
         "title",
-        "content",
-        "tags",
+        "description",
+        "venue",
+        "organizer",
     ]
 
-    lookup_field = "slug"
+    ordering_fields = [
+        "date",
+    ]
+
+    # ========================================================
+    # PERMISSIONS
+    # ========================================================
+
+    def get_permissions(self):
+
+        return [
+            IsAdminOrReadOnly()
+        ]
+
+    # ========================================================
+    # QUERYSET
+    # ========================================================
 
     def get_queryset(self):
 
@@ -380,12 +112,13 @@ class BlogViewSet(viewsets.ModelViewSet):
         is_admin = (
             user
             and user.is_authenticated
-            and IsClubAdmin().has_permission(
-                self.request,
-                self,
+            and (
+                user.is_staff
+                or user.is_staff_member()
             )
         )
 
+        # Public users only see published events
         if not is_admin:
             qs = qs.filter(
                 is_published=True
@@ -393,18 +126,33 @@ class BlogViewSet(viewsets.ModelViewSet):
 
         return qs
 
+    # ========================================================
+    # SERIALIZER
+    # ========================================================
+
+    def get_serializer_class(self):
+
+        if self.action == "retrieve":
+            return EventDetailSerializer
+
+        return EventListSerializer
+
+    # ========================================================
+    # CREATE EVENT
+    # ========================================================
+
     def perform_create(self, serializer):
 
-        post = serializer.save()
+        event = serializer.save()
 
-        if not post.slug:
+        if not event.slug:
 
-            post.slug = (
-                slugify(post.title)
-                or f"post-{post.pk}"
+            event.slug = (
+                slugify(event.title)
+                or f"event-{event.pk}"
             )
 
-            post.save(
+            event.save(
                 update_fields=[
                     "slug"
                 ]
@@ -412,182 +160,649 @@ class BlogViewSet(viewsets.ModelViewSet):
 
 
 # ============================================================
-# CONTACT CREATE
+# PUBLIC EVENT REGISTRATION
+#
+# IMPORTANT:
+# This is a separate APIView.
+#
+# NO LOGIN REQUIRED.
 # ============================================================
 
-class ContactCreateView(views.APIView):
+class EventRegisterView(APIView):
 
-    # Anyone can send a contact message.
     permission_classes = [
         permissions.AllowAny
     ]
 
-    # Do not require JWT authentication.
     authentication_classes = []
 
-    def post(self, request, *args, **kwargs):
+    # ========================================================
+    # GET REGISTRATION STATUS
+    # ========================================================
 
-        serializer = ContactMessageSerializer(
-            data=request.data
-        )
+    def get(self, request, slug):
 
-        if not serializer.is_valid():
+        try:
+
+            event = (
+                Event.objects
+                .prefetch_related("registrations")
+                .get(
+                    slug=slug,
+                    is_published=True,
+                )
+            )
+
+        except Event.DoesNotExist:
 
             return Response(
                 {
-                    "detail": "Invalid contact form data.",
-                    "errors": serializer.errors,
+                    "detail": "Event not found."
+                },
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        # Anonymous user
+        if not (
+            request.user
+            and request.user.is_authenticated
+        ):
+
+            return Response(
+                {
+                    "registered": False,
+                    "registration": None,
+                }
+            )
+
+        registration = (
+            event.registrations
+            .filter(
+                user=request.user
+            )
+            .first()
+        )
+
+        return Response(
+            {
+                "registered": bool(
+                    registration
+                ),
+
+                "registration": (
+                    EventRegistrationSerializer(
+                        registration
+                    ).data
+                    if registration
+                    else None
+                ),
+            }
+        )
+
+    # ========================================================
+    # POST REGISTRATION
+    # ========================================================
+
+    def post(self, request, slug):
+
+        # ----------------------------------------------------
+        # FIND EVENT
+        # ----------------------------------------------------
+
+        try:
+
+            event = (
+                Event.objects
+                .get(
+                    slug=slug,
+                    is_published=True,
+                )
+            )
+
+        except Event.DoesNotExist:
+
+            return Response(
+                {
+                    "detail": "Event not found."
+                },
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        # ----------------------------------------------------
+        # CHECK EVENT STATUS
+        # ----------------------------------------------------
+
+        if event.registration_status == "closed":
+
+            return Response(
+                {
+                    "detail":
+                        "Registration is closed for this event."
                 },
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-        contact = serializer.save()
+        if event.registration_status == "past":
+
+            return Response(
+                {
+                    "detail":
+                        "This event has already ended."
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        # ----------------------------------------------------
+        # COPY REQUEST DATA
+        # ----------------------------------------------------
+
+        data = request.data.copy()
+
+        # Always use event from URL.
+        data["event"] = event.pk
+
+        # ----------------------------------------------------
+        # AUTHENTICATED USER
+        #
+        # Authentication is OPTIONAL.
+        # Anonymous users are allowed.
+        # ----------------------------------------------------
+
+        is_authenticated = (
+            request.user
+            and request.user.is_authenticated
+        )
+
+        # ----------------------------------------------------
+        # LOGGED-IN USER DATA
+        # ----------------------------------------------------
+
+        if is_authenticated:
+
+            profile = getattr(
+                request.user,
+                "profile",
+                None,
+            )
+
+            # ----------------------------------------------
+            # PROFILE
+            # ----------------------------------------------
+
+            if profile:
+
+                data.setdefault(
+                    "full_name",
+                    request.user.get_full_name(),
+                )
+
+                data.setdefault(
+                    "register_number",
+                    getattr(
+                        profile,
+                        "register_number",
+                        "",
+                    ),
+                )
+
+                data.setdefault(
+                    "department",
+                    getattr(
+                        profile,
+                        "department",
+                        "",
+                    ),
+                )
+
+                data.setdefault(
+                    "year",
+                    getattr(
+                        profile,
+                        "year",
+                        "",
+                    ),
+                )
+
+                data.setdefault(
+                    "college",
+                    getattr(
+                        profile,
+                        "college",
+                        "",
+                    ),
+                )
+
+                data.setdefault(
+                    "gender",
+                    getattr(
+                        profile,
+                        "gender",
+                        "",
+                    ),
+                )
+
+            # ----------------------------------------------
+            # USER
+            # ----------------------------------------------
+
+            data.setdefault(
+                "full_name",
+                request.user.get_full_name(),
+            )
+
+            data.setdefault(
+                "email",
+                request.user.email,
+            )
+
+            data.setdefault(
+                "phone",
+                getattr(
+                    request.user,
+                    "phone",
+                    "",
+                ),
+            )
+
+        # ----------------------------------------------------
+        # VALIDATE
+        # ----------------------------------------------------
+
+        serializer = EventRegistrationSerializer(
+            data=data
+        )
+
+        serializer.is_valid(
+            raise_exception=True
+        )
+
+        # ----------------------------------------------------
+        # SAVE
+        # ----------------------------------------------------
+
+        registration = serializer.save(
+            user=(
+                request.user
+                if is_authenticated
+                else None
+            )
+        )
+
+        # ----------------------------------------------------
+        # WAITLIST
+        # ----------------------------------------------------
+
+        if event.registration_status == "full":
+
+            registration.status = "waitlist"
+
+            registration.save(
+                update_fields=[
+                    "status"
+                ]
+            )
+
+        # ----------------------------------------------------
+        # AWARD POINTS
+        #
+        # Only logged-in members receive points.
+        # ----------------------------------------------------
+
+        if is_authenticated:
+
+            membership = (
+                get_membership_for_user(
+                    request.user
+                )
+            )
+
+            if membership:
+
+                award_points(
+                    membership,
+                    10,
+                    "event",
+                    f"Registered for {event.title}",
+                )
+
+        # ----------------------------------------------------
+        # RESPONSE
+        # ----------------------------------------------------
 
         return Response(
-            {
-                "detail": (
-                    "Message posted. "
-                    "We will get back to you soon."
-                ),
-                "id": contact.id,
-            },
+            EventRegistrationSerializer(
+                registration
+            ).data,
             status=status.HTTP_201_CREATED,
         )
 
 
 # ============================================================
-# CONTACT ADMIN
+# CERTIFICATE PRINT
 # ============================================================
 
-class ContactAdminViewSet(
+class CertificatePrintView(APIView):
+
+    permission_classes = [
+        permissions.AllowAny
+    ]
+
+    authentication_classes = []
+
+    def get(self, request, pk):
+
+        try:
+
+            certificate = (
+                Certificate.objects
+                .select_related("event")
+                .get(pk=pk)
+            )
+
+        except Certificate.DoesNotExist:
+
+            return Response(
+                {
+                    "detail": "Not found."
+                },
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        return render(
+            request,
+            "certificate.html",
+            {
+                "cert": certificate,
+
+                "college_name":
+                    WebsiteSetting.get(
+                        "college_name",
+                        "College Name",
+                    ),
+
+                "club_name":
+                    WebsiteSetting.get(
+                        "eco_club_name",
+                        "ECO CLUB",
+                    ),
+
+                "code":
+                    certificate.verification_code,
+            },
+        )
+
+
+# ============================================================
+# REGISTRATIONS
+# ============================================================
+
+class RegistrationViewSet(
+    viewsets.ReadOnlyModelViewSet
+):
+
+    queryset = EventRegistration.objects.all()
+
+    serializer_class = EventRegistrationSerializer
+
+    filterset_fields = [
+        "event",
+        "status",
+        "year",
+    ]
+
+    search_fields = [
+        "full_name",
+        "register_number",
+        "email",
+        "department",
+    ]
+
+    permission_classes = [
+        permissions.IsAuthenticated
+    ]
+
+    def get_queryset(self):
+
+        qs = super().get_queryset()
+
+        user = self.request.user
+
+        is_admin = (
+            user.is_staff
+            or user.is_staff_member()
+        )
+
+        if not is_admin:
+
+            qs = qs.filter(
+                user=user
+            )
+
+        return qs.select_related(
+            "event"
+        )
+
+
+# ============================================================
+# PARTICIPANTS
+# ============================================================
+
+class ParticipantViewSet(
     viewsets.ModelViewSet
 ):
 
-    queryset = ContactMessage.objects.all().order_by(
-        "-created_at"
-    )
+    queryset = EventParticipant.objects.all()
 
-    serializer_class = ContactMessageSerializer
+    serializer_class = EventParticipantSerializer
 
     permission_classes = [
-        IsClubAdmin
+        permissions.IsAdminUser
     ]
 
     filterset_fields = [
-        "is_read",
+        "event",
+        "has_certificate",
     ]
 
-    http_method_names = [
-        "get",
-        "patch",
-        "head",
-        "options",
+    search_fields = [
+        "full_name",
+        "register_number",
     ]
 
+    # ========================================================
+    # CERTIFY PARTICIPANT
+    # ========================================================
 
-# ============================================================
-# IMPACT
-# ============================================================
+    @action(
+        detail=True,
+        methods=["post"],
+    )
+    def certify(
+        self,
+        request,
+        pk=None,
+    ):
 
-class ImpactView(views.APIView):
+        participant = self.get_object()
 
-    permission_classes = [
-        permissions.AllowAny
-    ]
+        participant.has_certificate = True
 
-    def get(self, request):
+        participant.save(
+            update_fields=[
+                "has_certificate"
+            ]
+        )
 
-        stats = dict(
-            ImpactStatistic.objects.values_list(
-                "metric",
-                "value",
+        certificate, created = (
+            Certificate.objects.get_or_create(
+                event=participant.event,
+                student=participant.student,
+                defaults={
+                    "full_name":
+                        participant.full_name,
+
+                    "register_number":
+                        participant.register_number,
+                },
             )
         )
 
-        base = {
-            "trees": 0,
-            "waste": 0,
-            "water": 0,
-            "volunteers": 0,
-            "students": 0,
-            "campaigns": 0,
-            "events": 0,
-            "members": 0,
-        }
+        if (
+            not created
+            and participant.student
+        ):
 
-        base.update(stats)
+            certificate.student = (
+                participant.student
+            )
 
-        return Response(base)
-
-
-# ============================================================
-# IMPACT ADMIN
-# ============================================================
-
-class ImpactAdminViewSet(
-    viewsets.ModelViewSet
-):
-
-    queryset = ImpactStatistic.objects.all()
-
-    serializer_class = ImpactStatisticSerializer
-
-    permission_classes = [
-        IsClubAdmin
-    ]
-
-
-# ============================================================
-# WEBSITE SETTINGS
-# ============================================================
-
-class SettingsView(views.APIView):
-
-    permission_classes = [
-        permissions.AllowAny
-    ]
-
-    def get(self, request):
+            certificate.save(
+                update_fields=[
+                    "student"
+                ]
+            )
 
         return Response(
-            dict(
-                WebsiteSetting.objects.values_list(
-                    "key",
-                    "value",
-                )
-            )
+            CertificateSerializer(
+                certificate
+            ).data
         )
 
 
 # ============================================================
-# WEBSITE SETTINGS ADMIN
+# CERTIFICATES
 # ============================================================
 
-class SettingsAdminViewSet(
-    viewsets.ModelViewSet
+class CertificateViewSet(
+    viewsets.ReadOnlyModelViewSet
 ):
 
-    queryset = WebsiteSetting.objects.all()
+    queryset = Certificate.objects.all()
 
-    serializer_class = WebsiteSettingSerializer
+    serializer_class = CertificateSerializer
 
-    permission_classes = [
-        IsClubAdmin
+    filterset_fields = [
+        "event",
+        "student",
     ]
 
-
-# ============================================================
-# UPLOAD
-# ============================================================
-
-class UploadViewSet(
-    viewsets.ModelViewSet
-):
-
-    queryset = UploadedFile.objects.all()
-
-    serializer_class = UploadedFileSerializer
-
-    permission_classes = [
-        IsClubAdmin
+    search_fields = [
+        "certificate_id",
+        "full_name",
+        "verification_code",
     ]
+
+    def get_queryset(self):
+
+        qs = super().get_queryset()
+
+        user = self.request.user
+
+        is_admin = (
+            user
+            and user.is_authenticated
+            and (
+                user.is_staff
+                or user.is_staff_member()
+            )
+        )
+
+        if not is_admin:
+
+            profile = getattr(
+                user,
+                "profile",
+                None,
+            )
+
+            if profile:
+
+                qs = qs.filter(
+                    student=profile
+                )
+
+            else:
+
+                qs = qs.none()
+
+        return qs.select_related(
+            "event"
+        )
+
+    # ========================================================
+    # VERIFY CERTIFICATE
+    # ========================================================
+
+    @action(
+        detail=False,
+        methods=["post"],
+        permission_classes=[
+            permissions.AllowAny
+        ],
+        authentication_classes=[],
+    )
+    def verify(
+        self,
+        request,
+    ):
+
+        code = (
+            request.data.get("code")
+            or request.data.get(
+                "certificate_id"
+            )
+        )
+
+        if not code:
+
+            return Response(
+                {
+                    "detail":
+                        "Verification code is required."
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        certificate = (
+            Certificate.objects
+            .filter(
+                verification_code__iexact=code
+            )
+            .first()
+            or
+            Certificate.objects
+            .filter(
+                certificate_id__iexact=code
+            )
+            .first()
+        )
+
+        if not certificate:
+
+            return Response(
+                {
+                    "valid": False,
+                    "detail":
+                        "Certificate not found.",
+                },
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        certificate.is_verified = True
+
+        certificate.save(
+            update_fields=[
+                "is_verified"
+            ]
+        )
+
+        return Response(
+            {
+                "valid": True,
+
+                "certificate":
+                    CertificateSerializer(
+                        certificate
+                    ).data,
+            }
+        )
