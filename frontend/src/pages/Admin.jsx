@@ -633,11 +633,11 @@ function Events() {
     setSaving(true)
 
     try {
-      const { id, ...payload } = form
+      const { id, slug, ...payload } = form
 
       if (id) {
         await api.patch(
-          `/events/${id}/`,
+          `/events/${slug}/`,
           payload
         )
 
@@ -673,13 +673,13 @@ function Events() {
     }
   }
 
-  const del = async (id) => {
+  const del = async (event) => {
     if (!window.confirm('Delete this event?')) {
       return
     }
 
     try {
-      await api.delete(`/events/${id}/`)
+      await api.delete(`/events/${event.slug}/`)
       toast('Deleted')
       reload()
     } catch (error) {
@@ -750,7 +750,7 @@ function Events() {
                 </button>
 
                 <button
-                  onClick={() => del(event.id)}
+                  onClick={() => del(event)}
                   className="p-2 rounded-lg bg-rose-50 text-rose-600"
                 >
                   <FiTrash2 />
